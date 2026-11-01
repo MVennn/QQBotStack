@@ -208,7 +208,9 @@ function Write-Status {
     $linkTxt = 'not connected'
     if ([int]$Snapshot.link -gt 0) { $linkTxt = 'connected' }
     $loginTxt = $linkTxt
-    if ($Snapshot.qr) { $loginTxt = 'QR waiting for scan (fresh ' + $Snapshot.qr + ')' }
+    # a QR file lingering on disk does NOT mean login is pending: it survives a
+    # successful scan. Only trust it when the OneBot link is actually down.
+    if ($linkTxt -ne 'connected' -and $Snapshot.qr) { $loginTxt = 'QR waiting for scan (fresh ' + $Snapshot.qr + ')' }
     $linkLine = '  napcat->astrbot ' + $loginTxt
     if ($linkTxt -eq 'connected') { Write-Host $linkLine -ForegroundColor Green }
     elseif ($Snapshot.qr) { Write-Host $linkLine -ForegroundColor Yellow }
