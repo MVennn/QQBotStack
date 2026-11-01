@@ -9,6 +9,8 @@
 
 ## [0.1.0] — 2026-11-01
 
+面向用户的说明见 [docs/release-notes/0.1.0.md](docs/release-notes/0.1.0.md)。
+
 ### 建仓：门面仓首次入库（2026-11-01）
 
 - 本地建仓：部署脚本（`tools/`）、插件源码（`host/plugin/`）、docs 四分类文档与
