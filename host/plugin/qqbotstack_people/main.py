@@ -253,6 +253,13 @@ class PeoplePlugin(Star):
         self._dir: Path | None = None
         self._locks: dict[str, asyncio.Lock] = {}
         self._last_named: dict[tuple[str, str], float] = {}
+        # 人档读缓存：qq -> ((mtime_ns, size), person dict)。
+        # 只省「读盘 + 解析 + prune」，写入仍是每次落盘（写穿），
+        # 崩溃一致性、外部改动（mtime 变化即失效）与原来一致。
+        self._person_cache: dict[str, tuple[tuple[int, int], dict]] = {}
+        self._person_cache_cap = 64
+        # 整理循环用：上次「没有新消息」检查时的文件 mtime，未变化就不再读盘。
+        self._extract_stat: dict[str, int] = {}
         self._extract_task: asyncio.Task | None = None
         self._register_routes()
         logger.info(
@@ -323,13 +330,36 @@ class PeoplePlugin(Star):
             "count": 0,
         }
 
+    def _cache_person(self, qq: str, stamp: tuple[int, int], person: dict) -> None:
+        cache = self._person_cache
+        cache[qq] = (stamp, person)
+        while len(cache) > self._person_cache_cap:
+            # LRU 淘汰最旧的条目。缓存条目永远与磁盘一致（写穿 + mtime 校验），
+            # 淘汰只是退回「下次重新读盘」，不丢数据。
+            cache.pop(next(iter(cache)))
+
     def _load_person(self, qq: str) -> dict:
         path = self._person_path(qq)
-        if not path or not path.is_file():
+        if not path:
+            return self._empty_person(qq)
+        try:
+            info = path.stat()
+        except OSError:
+            self._person_cache.pop(qq, None)
+            return self._empty_person(qq)
+        stamp = (info.st_mtime_ns, info.st_size)
+        cached = self._person_cache.get(qq)
+        if cached is not None and cached[0] == stamp:
+            # 文件自上次读/写后没动过：直接用缓存，省一次读盘 + 解析 + prune。
+            self._person_cache[qq] = self._person_cache.pop(qq)
+            return cached[1]
+        if not path.is_file():
+            self._person_cache.pop(qq, None)
             return self._empty_person(qq)
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
+                self._person_cache.pop(qq, None)
                 return self._empty_person(qq)
             person = self._empty_person(qq)
             person.update(data)
@@ -337,9 +367,12 @@ class PeoplePlugin(Star):
                 person["profile"] = {"summary": "", "updated_ts": 0}
             if not isinstance(person.get("facts"), list):
                 person["facts"] = []
-            return self._prune_person(person)
+            person = self._prune_person(person)
         except (OSError, ValueError):
+            self._person_cache.pop(qq, None)
             return self._empty_person(qq)
+        self._cache_person(qq, stamp, person)
+        return person
 
     def _prune_person(self, person: dict) -> dict:
         now = time.time()
@@ -413,6 +446,16 @@ class PeoplePlugin(Star):
             os.replace(tmp, path)
         except OSError as exc:
             logger.warning(f"[{PLUGIN_NAME}] save failed: {type(exc).__name__}")
+            self._person_cache.pop(qq, None)
+            return
+        # 写穿后立刻记住新文件的 stat：下次读命中缓存；
+        # 落盘失败则丢缓存，退回原来的「下次重新读盘」。
+        try:
+            info = path.stat()
+        except OSError:
+            self._person_cache.pop(qq, None)
+            return
+        self._cache_person(qq, (info.st_mtime_ns, info.st_size), person)
 
     # ---------------- public API for guard ----------------
 
@@ -478,6 +521,8 @@ class PeoplePlugin(Star):
                 path.unlink()
             except OSError:
                 pass
+        self._person_cache.pop(qq, None)
+        self._extract_stat.pop(qq, None)
         for key in [key for key in self._last_named if key[1] == qq]:
             self._last_named.pop(key, None)
 
@@ -997,6 +1042,10 @@ class PeoplePlugin(Star):
             os.replace(tmp, self._config_path)
         except OSError as exc:
             logger.warning(f"[{PLUGIN_NAME}] save config failed: {exc}")
+        # 历史长度/TTL 等参数变了：缓存里的旧 prune 结果整体作废，
+        # 下次读盘按新参数重剪。
+        self._person_cache.clear()
+        self._extract_stat.clear()
         if self.extract_enabled and self._extract_task is None:
             self._extract_task = asyncio.create_task(self._extract_loop())
         logger.info(f"[{PLUGIN_NAME}] config saved: {self._snapshot_config()}")
