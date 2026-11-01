@@ -14,6 +14,8 @@
 | `tools/sync-auths.ps1` | 操作机 | 把 `auths/` 推到目标机并重启网关；**每天最多一次**（日期记在 `%LOCALAPPDATA%\QQBotStack\authsync.state`） | 改目标机的账号文件与网关进程 |
 | `tools/sync-auths-hidden.vbs` | 操作机 | `sync-auths.ps1` 的隐藏启动器，供计划任务调用（`WScript.Shell.Run(..., 0, True)`） | 不改；只是启动器 |
 | `tools/start-stack.ps1` | 操作机 | 一键查看/拉起四块组件；`-Restart` 重启网关 / zgate / AstrBot | **会** —— 在目标机起进程、首次运行会建 NapCat 计划任务 |
+| `tools/stack-menu.cmd` | 操作机 | **双击式控制台**：数字菜单（状态 / 启动 / 重启 / 面板 / 扫码 / SSH），目标地址从 stack.conf 读 | 随所选菜单项 |
+| `tools/get-qr.ps1` | 操作机 | 从目标机拉最新 NapCat 二维码到本机并打开（登录/切号扫码用，不用去碰目标机桌面） | 只读 + 拉一个 png |
 | `tools/build-worldbook.py` | 任意 | 把 Markdown 设定集切成世界书条目（按二级标题切、标题与加粗术语作关键词） | 只写输出 JSON |
 | `tools/check-docs.py` | 任意 | 文档自检：断链、失效锚点、缺引言块、孤儿文档 | 不改 |
 | `tools/check-secrets.py` | 任意 | 脱敏扫描：token、本机绝对路径、真实邮箱 | 不改 |
