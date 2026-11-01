@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表情机缘 · 设置</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f8f4f2; --panel:#fffdfc; --line:rgba(60,60,60,.16);
+    --text:#241f1e; --muted:#756a67; --accent:#a34b63; --accent2:#c98a5a;
+    --chip:rgba(163,75,99,.10); --shadow:0 8px 28px rgba(36,31,30,.10); --danger:#b3402f;
+  }
+  html[data-theme="dark"] {
+    --bg:#1a1718; --panel:#231f21; --line:rgba(255,255,255,.14);
+    --text:#eae3e1; --muted:#a89d99; --accent:#d98aa2; --accent2:#e0a878;
+    --chip:rgba(217,138,162,.14); --shadow:0 8px 28px rgba(0,0,0,.35); --danger:#e07a68;
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --bg:#1a1718; --panel:#231f21; --line:rgba(255,255,255,.14);
+      --text:#eae3e1; --muted:#a89d99; --accent:#d98aa2; --accent2:#e0a878;
+      --chip:rgba(217,138,162,.14); --shadow:0 8px 28px rgba(0,0,0,.35); --danger:#e07a68;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:20px 22px 40px; background:var(--bg); color:var(--text);
+    font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+  h1 { font-size:19px; margin:0; }
+  .sub { color:var(--muted); font-size:12px; margin:3px 0 0; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px 20px; box-shadow:var(--shadow); max-width:760px; margin-top:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .field { display:grid; gap:5px; }
+  .field label { font-size:12px; color:var(--muted); }
+  input[type="text"], input[type="number"] { background:var(--bg); color:var(--text);
+    border:1px solid var(--line); border-radius:9px; padding:8px 11px; font:inherit; outline:none; }
+  input:focus { border-color:var(--accent); }
+  .check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+  .check small { color:var(--muted); }
+  .actions { display:flex; gap:10px; align-items:center; margin-top:18px; }
+  button { background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:9px; padding:8px 14px; font:inherit; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:hover { border-color:var(--accent); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { font-size:11px; padding:2px 9px; border-radius:999px; background:var(--chip); color:var(--muted); }
+  .hint { color:var(--muted); font-size:12px; }
+  #toast { position:fixed; right:20px; bottom:20px; padding:9px 14px; border-radius:10px;
+    background:var(--accent); color:#fff; font-size:13px; opacity:0; transition:opacity .18s; pointer-events:none; }
+  #toast.show { opacity:1; } #toast.error { background:var(--danger); }
+</style>
+</head>
+<body>
+  <h1>表情机缘</h1>
+  <p class="sub" id="sub">读取中…</p>
+
+  <form class="panel" id="form">
+    <div class="grid">
+      <label class="check"><input type="checkbox" id="enabled"> 启用随机配图</label>
+      <label class="check"><input type="checkbox" id="marker"> 注入表情标记提醒</label>
+      <label class="check"><input type="checkbox" id="leak"> 清洗漏出的 XML 标签</label>
+    </div>
+
+    <div class="grid" style="margin-top:14px">
+      <div class="field">
+        <label for="pack">表情包 ID（meme_manager 的包名）</label>
+        <input id="pack" type="text" placeholder="qq-fav-001">
+      </div>
+      <div class="field">
+        <label for="prob">配图概率（0–100%）</label>
+        <input id="prob" type="number" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="cooldown">冷却（秒）</label>
+        <input id="cooldown" type="number" min="0" max="86400" step="10">
+      </div>
+      <div class="field">
+        <label for="keep">保留上下文条数（-1 表示不裁剪）</label>
+        <input id="keep" type="number" min="-1" step="1">
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:14px">
+      <label for="fallback">优先子目录（逗号分隔，可留空）</label>
+      <input id="fallback" type="text" placeholder="例如：猫猫, 日常">
+    </div>
+
+    <div class="chips" id="packInfo"></div>
+    <p class="hint" id="packHint"></p>
+
+    <div class="actions">
+      <button type="submit" class="primary">保存</button>
+      <button type="button" id="reload">重新读取</button>
+      <span class="hint" id="status"></span>
+    </div>
+  </form>
+
+  <div id="toast"></div>
+<script type="module">
+const bridge = window.AstrBotPluginPage || null;
+let toastTimer = 0;
+
+function toast(msg, err) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.toggle("error", !!err); el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+async function apiGet(path) {
+  if (!bridge || !bridge.apiGet) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  const res = await bridge.apiGet(path, {});
+  if (res && typeof res === "object" && "ok" in res) {
+    if (!res.ok) throw new Error(res.message || "请求失败");
+    return res.data;
+  }
+  return res;
+}
+
+async function apiPost(path, body) {
+  if (!bridge || !bridge.apiPost) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  const res = await bridge.apiPost(path, body);
+  if (res && typeof res === "object" && "ok" in res) {
+    if (!res.ok) throw new Error(res.message || "请求失败");
+    return res.data;
+  }
+  return res;
+}
+
+function fill(data) {
+  document.getElementById("enabled").checked = !!data.enabled;
+  document.getElementById("marker").checked = !!data.marker_reminder_enabled;
+  document.getElementById("leak").checked = !!data.leak_sanitize_enabled;
+  document.getElementById("pack").value = data.pack_id || "";
+  document.getElementById("prob").value = Math.round((data.probability || 0) * 100);
+  document.getElementById("cooldown").value = Math.round(data.cooldown_sec || 0);
+  document.getElementById("keep").value = data.context_keep;
+  document.getElementById("fallback").value = (data.fallback_names || []).join(", ");
+  const pack = data.pack || {};
+  document.getElementById("packInfo").innerHTML =
+    '<span class="chip">文件 ' + (pack.files || 0) + ' 张</span>' +
+    '<span class="chip">可选名字 ' + (pack.menu_count || 0) + ' 个</span>' +
+    '<span class="chip">' + (pack.dir || "") + '</span>';
+  document.getElementById("packHint").textContent = (pack.files || 0)
+    ? "名字列表来自包内的 memes_data.json；模型只会从这些名字里选。"
+    : "这个包里没有图片，检查包 ID 或先在 meme_manager 里安装资源包。";
+  document.getElementById("sub").textContent =
+    "包 " + (data.pack_id || "—") + " · 概率 " + Math.round((data.probability || 0) * 100) + "%";
+}
+
+async function load() {
+  try {
+    fill(await apiGet("config"));
+    document.getElementById("status").textContent = "";
+  } catch (err) {
+    document.getElementById("sub").textContent = "读取失败：" + (err.message || err);
+    toast(err.message || "读取失败", true);
+  }
+}
+
+document.getElementById("form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const body = {
+    enabled: document.getElementById("enabled").checked,
+    marker_reminder_enabled: document.getElementById("marker").checked,
+    leak_sanitize_enabled: document.getElementById("leak").checked,
+    pack_id: document.getElementById("pack").value.trim(),
+    probability: Number(document.getElementById("prob").value || 0) / 100,
+    cooldown_sec: Number(document.getElementById("cooldown").value || 0),
+    context_keep: Number(document.getElementById("keep").value || -1),
+    fallback_names: document.getElementById("fallback").value
+      .split(/[,，、]/).map(s => s.trim()).filter(Boolean),
+  };
+  try {
+    fill(await apiPost("config", body));
+    document.getElementById("status").textContent = "已保存并生效";
+    toast("已保存");
+  } catch (err) {
+    toast(err.message || "保存失败", true);
+  }
+});
+
+document.getElementById("reload").addEventListener("click", load);
+
+const themeParam = new URLSearchParams(location.search).get("theme");
+if (themeParam === "dark" || themeParam === "light") document.documentElement.dataset.theme = themeParam;
+
+load();
+</script>
+</body>
+</html>

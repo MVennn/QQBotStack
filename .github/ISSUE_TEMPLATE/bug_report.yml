@@ -1,0 +1,92 @@
+name: 问题反馈（Bug）
+description: 部署脚本跑不通、验收项对不上、消息收不到
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量把下面的信息填全，尤其是**出问题的是哪一块**与**输出原文**——
+        这套栈有三块组件，同一个「bot 不回消息」可能来自网关、协议端或机器人本身。
+
+        反馈前先查 [docs/TROUBLESHOOTING.md](https://github.com/MVennn/QQBotStack/blob/main/docs/TROUBLESHOOTING.md)
+        与 [docs/PITFALLS.md](https://github.com/MVennn/QQBotStack/blob/main/docs/PITFALLS.md)。
+
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: 反馈前确认
+      options:
+        - label: 我已知悉部署脚本会改目标机状态（装 QQ、装 AstrBot、建 SYSTEM 计划任务），并了解如何回退。
+          required: true
+        - label: 我已把主机地址、QQ 号、账号邮箱、accessToken 与 api_key 抹掉，替换成 `<HOST-IP>` / `<QQ-ID>` / `<REDACTED-TOKEN>`。
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: 出问题的是哪一块
+      options:
+        - 模型网关（wb2api / 7863）
+        - QQ 协议端（NapCat / 6099）
+        - 机器人（AstrBot / 6185）
+        - 部署脚本本身
+        - 不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 出了什么问题
+      description: |
+        现象 + 复现步骤：在哪个阶段、预期结果与实际结果分别是什么。
+      placeholder: |
+        例：
+        1. 执行 deploy-stack.ps1 -Stage gateway
+        2. 脚本报 schtasks /create failed with exit code 1
+        3. 预期：计划任务注册成功；实际：直接退出
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 目标机 Windows 版本
+      description: 在目标机执行 `winver`，把版本号贴在这里
+      placeholder: "例：Windows 11 23H2 (22631.4169)"
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: 组件版本
+      description: 部署脚本里记的 AstrBot / Launcher / NapCat 版本；网关看 `wb2api.exe` 的构建来源
+      placeholder: "例：AstrBot 4.29.3 / Launcher 0.3.13 / NapCat 4.18.41"
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 输出 / 报错原文
+      description: 把命令输出整段贴进来，不要只截一行；贴前先脱敏
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: verify
+    attributes:
+      label: verify-stack.py 的结果（可选）
+      description: 在操作机跑 `python tools/verify-stack.py --conf host/stack.conf`，把五项结果贴上来（地址与 key 打码）
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 截图或补充信息（可选）
+    validations:
+      required: false

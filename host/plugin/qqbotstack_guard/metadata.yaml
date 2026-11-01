@@ -1,0 +1,5 @@
+name: qqbotstack_guard
+display_name: 唤醒与接话
+desc: 只允许指定群按 @ / 关键词 / 随机插话唤醒；分享、点歌、聊视频走 LLM 工具并接人格回复
+author: M.Venn
+version: 1.6.40

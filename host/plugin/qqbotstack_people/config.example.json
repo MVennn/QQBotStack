@@ -1,0 +1,23 @@
+{
+  "people_memory_enabled": true,
+  "people_address_prob": 0.15,
+  "people_address_cooldown_sec": 300.0,
+  "people_history_max": 80,
+  "people_history_chars": 200,
+  "people_history_ttl_days": 180,
+  "people_history_inject": 3,
+  "people_recall_max": 6,
+  "intimacy_daily_cap": 20,
+  "extract_enabled": true,
+  "extract_interval_sec": 180.0,
+  "extract_min_messages": 4,
+  "extract_max_messages": 30,
+  "extract_cooldown_sec": 120.0,
+  "extract_provider_id": "zgate-router",
+  "extract_timeout_sec": 60.0,
+  "extract_max_facts_per_call": 3,
+  "fact_max": 50,
+  "fact_ttl_days": 180,
+  "fact_inject": 5,
+  "raw_keep_after_extract": 3
+}

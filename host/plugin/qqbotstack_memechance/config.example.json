@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "pack_id": "qq-fav-001",
+  "probability": 0.2,
+  "cooldown_sec": 60,
+  "marker_reminder_enabled": true,
+  "leak_sanitize_enabled": true,
+  "context_keep": -1,
+  "fallback_names": [
+    "抱小鸡",
+    "猫狗贴",
+    "哭哭狗",
+    "哭脸狗",
+    "冒汗狗",
+    "趴问号",
+    "毛巾狗"
+  ]
+}

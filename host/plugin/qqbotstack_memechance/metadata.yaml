@@ -1,0 +1,5 @@
+name: qqbotstack_memechance
+display_name: 表情机缘
+desc: 随机给 LLM 回复附加一张本地表情包图片，不依赖模型选图
+author: M.Venn
+version: 1.0.0

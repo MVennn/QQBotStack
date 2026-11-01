@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>唤醒与接话 · 状态</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f4ef; --panel: #fffdf8; --line: rgba(60,60,60,.16);
+    --text: #23211e; --muted: #6f6a62; --ok: #2f7d4f; --warn: #b8862f; --bad: #b3402f;
+    --chip: rgba(43,58,85,.09); --shadow: 0 8px 28px rgba(35,33,30,.10);
+  }
+  html[data-theme="dark"] {
+    --bg: #17181b; --panel: #202226; --line: rgba(255,255,255,.14);
+    --text: #e8e4dc; --muted: #a39d92; --ok: #6fbf8f; --warn: #d8a94a; --bad: #e07a68;
+    --chip: rgba(157,180,216,.14); --shadow: 0 8px 28px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --bg:#17181b; --panel:#202226; --line:rgba(255,255,255,.14);
+      --text:#e8e4dc; --muted:#a39d92; --ok:#6fbf8f; --warn:#d8a94a; --bad:#e07a68;
+      --chip:rgba(157,180,216,.14); --shadow:0 8px 28px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px 22px 40px; background: var(--bg); color: var(--text);
+    font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+  h1 { font-size: 19px; margin: 0; }
+  .sub { color: var(--muted); font-size: 12px; margin: 3px 0 0; }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; letter-spacing: .4px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; word-break: break-all; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 11px; padding: 2px 9px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+  .chip.on { background: rgba(47,125,79,.14); color: var(--ok); }
+  .chip.off { background: rgba(179,64,47,.12); color: var(--bad); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
+  #toast { position: fixed; right: 20px; bottom: 20px; padding: 9px 14px; border-radius: 10px;
+    background: #2b3a55; color: #fff; font-size: 13px; opacity: 0; transition: opacity .18s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #toast.error { background: var(--bad); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>唤醒与接话</h1>
+      <p class="sub" id="sub">读取中…</p>
+    </div>
+    <div class="chips">
+      <span class="chip" id="refreshChip">每 5 秒刷新</span>
+      <span class="chip" id="healthChip">—</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>唤醒策略</h2>
+      <dl class="kv" id="wake"></dl>
+    </section>
+    <section class="card">
+      <h2>接话窗口</h2>
+      <dl class="kv" id="followup"></dl>
+    </section>
+    <section class="card">
+      <h2>模型路由</h2>
+      <dl class="kv" id="routing"></dl>
+    </section>
+    <section class="card">
+      <h2>断路器</h2>
+      <dl class="kv" id="breaker"></dl>
+    </section>
+    <section class="card">
+      <h2>功能开关</h2>
+      <div class="chips" id="features"></div>
+    </section>
+    <section class="card">
+      <h2>依赖插件</h2>
+      <div class="chips" id="plugins"></div>
+      <p class="hint" id="wbHint"></p>
+    </section>
+  </div>
+
+  <div id="toast"></div>
+<script type="module">
+const bridge = window.AstrBotPluginPage || null;
+let timer = 0;
+
+function toast(msg, err) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.toggle("error", !!err); el.classList.add("show");
+  clearTimeout(timer); timer = setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+async function apiGet(path) {
+  if (!bridge || !bridge.apiGet) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  const res = await bridge.apiGet(path, {});
+  if (res && typeof res === "object" && "ok" in res) {
+    if (!res.ok) throw new Error(res.message || "请求失败");
+    return res.data;
+  }
+  return res;
+}
+
+function kv(el, pairs) {
+  el.innerHTML = pairs.map(([k, v]) => "<dt>" + k + "</dt><dd>" + v + "</dd>").join("");
+}
+
+function chip(label, on) {
+  return '<span class="chip ' + (on ? "on" : "off") + '">' + label + (on ? " 开" : " 关") + "</span>";
+}
+
+function render(d) {
+  document.getElementById("sub").textContent =
+    "群 " + (d.allowed_group || "未设置") + " · 世界书回退 " + d.worldbook_fallback_entries + " 条";
+  const healthy = !d.breaker.open && d.routing.simple && d.routing.complex;
+  document.getElementById("healthChip").innerHTML =
+    '<span class="dot ' + (healthy ? "ok" : "warn") + '"></span>' + (healthy ? "运行正常" : "注意");
+
+  kv(document.getElementById("wake"), [
+    ["允许群", d.allowed_group || "—"],
+    ["关键词", (d.keywords || []).join("、") || "—"],
+    ["随机插话", (d.random_prob * 100).toFixed(0) + "% / 冷却 " + d.random_cooldown_sec + "s"],
+  ]);
+
+  const f = d.followup, w = f.current;
+  kv(document.getElementById("followup"), [
+    ["开关", f.enabled ? "开" : "关"],
+    ["窗口长度", f.window_sec + "s"],
+    ["当前窗口", w ? (w.open ? "开 · 剩 " + w.remaining_sec + "s" : "已关闭") : "无"],
+    ["兴趣值", w ? w.interest : "—"],
+    ["链长 / 生成中", w ? w.chain + " / " + (w.generating ? "是" : "否") : "—"],
+  ]);
+
+  kv(document.getElementById("routing"), [
+    ["简单 / 复杂", d.routing.simple + " / " + d.routing.complex],
+    ["图片轮", d.routing.image || "未设置（只给占位）"],
+    ["兜底", (d.routing.simple_fallback || "-") + " / " + (d.routing.complex_fallback || "-")],
+  ]);
+
+  const b = d.breaker;
+  kv(document.getElementById("breaker"), [
+    ["状态", b.open ? "熔断中" : "正常"],
+    ["连续失败", b.fail_count + " / " + b.threshold],
+    ["探活间隔", b.probe_interval_sec + "s"],
+    ["开关", b.enabled ? "开" : "关"],
+  ]);
+
+  document.getElementById("features").innerHTML = [
+    chip("分享", d.features.share), chip("点歌", d.features.music), chip("视频", d.features.video),
+    chip("吃什么", d.features.food), chip("API", d.features.api),
+    chip("parser 接管", d.features.takeover_parser), chip("apis 接管", d.features.takeover_apis),
+    chip("food 接管", d.features.takeover_food), chip("剥推理", d.features.strip_reasoning),
+    chip("图片只看不读", d.features.image_judge_only),
+  ].join("");
+
+  document.getElementById("plugins").innerHTML = Object.entries(d.plugins)
+    .map(([name, ok]) => '<span class="chip ' + (ok ? "on" : "off") + '">' + name + (ok ? " ✓" : " ✗") + "</span>")
+    .join("");
+  document.getElementById("wbHint").textContent = d.plugins["qqbotstack_worldbook"]
+    ? "世界书由 qqbotstack_worldbook 提供；本插件只保留回退副本。"
+    : "世界书插件未加载，正在使用本插件内的回退副本。";
+}
+
+async function refresh() {
+  try {
+    const data = await apiGet("status");
+    render(data);
+  } catch (err) {
+    document.getElementById("sub").textContent = "读取失败：" + (err.message || err);
+    toast(err.message || "读取失败", true);
+  }
+}
+
+const themeParam = new URLSearchParams(location.search).get("theme");
+if (themeParam === "dark" || themeParam === "light") document.documentElement.dataset.theme = themeParam;
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

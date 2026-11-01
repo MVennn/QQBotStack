@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 排错手册
+    url: https://github.com/MVennn/QQBotStack/blob/main/docs/TROUBLESHOOTING.md
+    about: 按现象查网关、协议端与机器人的常见问题。
+  - name: 工具与组件清单
+    url: https://github.com/MVennn/QQBotStack/blob/main/docs/TOOLS.md
+    about: 每个脚本干什么、组件从哪来、配置要点。

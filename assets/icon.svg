@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512" role="img" aria-label="QQBotStack">
+  <defs>
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="54" y1="0" x2="54" y2="108">
+      <stop offset="0" stop-color="#2B3242"/>
+      <stop offset="1" stop-color="#161A22"/>
+    </linearGradient>
+    <linearGradient id="line" gradientUnits="userSpaceOnUse" x1="18" y1="88" x2="90" y2="24">
+      <stop offset="0" stop-color="#FFC24A"/>
+      <stop offset="1" stop-color="#FF7A00"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="108" height="108" rx="24" ry="24" fill="url(#bg)"/>
+  <g stroke="url(#line)" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M30,26 L78,26 Q90,26 90,38 L90,62 Q90,74 78,74 L50,74 L36,86 L36,74 L30,74 Q18,74 18,62 L18,38 Q18,26 30,26 Z" stroke-width="6"/>
+    <path d="M36,44 L46,52 L36,60" stroke-width="6"/>
+    <path d="M54,60 L68,60" stroke-width="6"/>
+  </g>
+</svg>

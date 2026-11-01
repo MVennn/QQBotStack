@@ -1,0 +1,5 @@
+name: qqbotstack_people
+display_name: 人物记忆
+desc: 按 QQ 记称呼与亲密度；后台用模型把聊天整理成画像和要点表格
+author: M.Venn
+version: 1.1.1

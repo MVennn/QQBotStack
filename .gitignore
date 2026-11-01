@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# QQBotStack —— 版本控制忽略规则
+#
+# 原则：**脚本与文档一律入库**；只排除「运行时数据」「凭据」「上游二进制」。
+# ---------------------------------------------------------------------------
+
+# --- 部署运行时（AstrBot 实例、NapCat、wb2api、账号凭据全在这里）---
+/runtime/
+**/runtime/
+
+# --- 账号凭据：WorkBuddy 的 accessToken 全在 auths/*.json ---
+auths/
+**/auths/
+*.token
+cookies*.json
+
+# --- 插件实例配置：含群号与关键词，真值不入库 ---
+host/plugin/*/config.json
+# 世界书产物含作品正文，由 tools/build-worldbook.py 从设定集生成，不入库
+host/plugin/*/worldbook.json
+# 反问后的待答意图（运行时状态，含发送者 ID），不入库
+host/plugin/*/pending_media.json
+
+# --- 主机与账号配置：真值不入库（样例见 stack.conf.example，字段见 docs/SECRETS.md）---
+host/stack.conf
+
+# --- 凭据 ---
+*.key
+*.key.orig
+*.crt
+*.crt.orig
+*.pem
+*.p12
+*.pfx
+*.env
+.env
+.env.*
+!*.env.example
+id_rsa*
+id_ed25519*
+known_hosts*
+
+# --- 上游二进制与安装包（许可证不允许再分发，部署时从官方 Release 下载）---
+*.exe
+*.msi
+*.zip
+*.7z
+!docs/**
+!assets/**
+
+# --- 运行产物与日志 ---
+*.log
+*.log.*
+*.pid
+*.sock
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Python 缓存 ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# --- 文档自检的临时输出 ---
+report*.md
+REPORT*.md
+!docs/**
+findings*.json
+
+# --- 本地索引与编辑器 ---
+.codegraph/
+.idea/
+.vscode/
+*.code-workspace
+
+# --- 本地快捷方式（指向 tools\start-stack.cmd，机器相关，不入库）---
+*.lnk
+
+# --- 本地工作区（临时产物、真机实测记录，不入库）---
+/.work/

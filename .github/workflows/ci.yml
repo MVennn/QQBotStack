@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: 静态检查
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Python 语法
+        run: python3 -c "import ast,glob; [ast.parse(open(f,encoding='utf-8').read(), f) for f in glob.glob('**/*.py', recursive=True)]"
+
+      # PowerShell 5.1 读无 BOM 的 UTF-8 会按 ANSI 解码，中文注释会破坏语法。
+      - name: PowerShell 脚本必须纯 ASCII
+        run: |
+          python3 - <<'PY'
+          import glob, sys
+          bad = []
+          for path in glob.glob('tools/*.ps1'):
+              with open(path, 'rb') as fh:
+                  data = fh.read()
+              if any(byte > 127 for byte in data):
+                  bad.append(path)
+          if bad:
+              print('以下脚本含非 ASCII 字节：' + ', '.join(bad))
+              sys.exit(1)
+          print('tools/*.ps1 全部为纯 ASCII')
+          PY
+
+      - name: PowerShell 语法
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path tools/deploy-stack.ps1), [ref]$null, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host $_ }
+            exit 1
+          }
+          Write-Host 'PowerShell 解析通过'
+
+      - name: Issue 表单 YAML 可解析
+        run: |
+          python3 -c "import glob,yaml; [yaml.safe_load(open(f,encoding='utf-8')) for f in glob.glob('.github/ISSUE_TEMPLATE/*.yml')]; print('Issue 表单 OK')"
+
+  docs:
+    name: 文档与脱敏扫描
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: 文档自检
+        run: python3 tools/check-docs.py
+
+      # 凭据、QQ 号、本机路径与账号邮箱不该出现在仓里
+      - name: 敏感信息扫描
+        run: python3 tools/check-secrets.py

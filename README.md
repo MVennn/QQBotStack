@@ -1,0 +1,102 @@
+<div align="center">
+
+<img src="assets/logo.png" width="128" alt="QQBotStack">
+
+# QQBotStack
+
+**把 QQ 机器人、QQ 协议端与模型网关装成一套**
+
+能用系统自带的就别装第三方，能绑回环就别开端口。
+
+![CI](https://github.com/MVennn/QQBotStack/actions/workflows/ci.yml/badge.svg) ![源码仓库](https://img.shields.io/badge/源码仓库-GitHub-181717?logo=github&logoColor=white) ![问题反馈](https://img.shields.io/badge/问题反馈-Issues-181717?logo=github&logoColor=white) ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?logo=windows&logoColor=white) ![AstrBot](https://img.shields.io/badge/AstrBot-4.x-6C5CE7) ![OneBot](https://img.shields.io/badge/OneBot-11-00A1D6) ![License](https://img.shields.io/badge/License-MIT-blue)
+
+</div>
+
+---
+
+## 这是什么
+
+一套 Windows 上的 QQ 机器人部署方案，三块组件拼成一条完整链路：**QQ 消息进来 → 模型生成回复 → 发回 QQ**。仓库本身只含部署脚本、验证脚本与文档，不含任何上游代码或二进制。
+
+**AstrBot** 是大脑：接模型、跑插件、管对话。**NapCat** 是协议端：跑在 QQ NT 之上，把 QQ 消息翻译成 OneBot 11。**workbuddy2api** 是模型网关：把 WorkBuddy 账号池变成 OpenAI 兼容接口，AstrBot 直接指向它。
+
+三块的接线是固定的：NapCat 作为 WebSocket 客户端**主动连** AstrBot 的 `127.0.0.1:6199`，所以协议端不需要开任何入站端口；AstrBot 以 OpenAI 兼容协议请求 `127.0.0.1:7863/v1`。**三个服务的 WebUI 全部只绑回环**，运维通过 SSH 本地转发进入，不向局域网暴露任何管理面。
+
+完整边界、端口与「会改机器哪些状态」见 [docs/ARCHITECTURE.md](https://github.com/MVennn/QQBotStack/blob/main/docs/ARCHITECTURE.md)；每块组件怎么装、怎么调见 [docs/TOOLS.md](https://github.com/MVennn/QQBotStack/blob/main/docs/TOOLS.md)。
+
+## 环境要求
+
+| 项 | 要求 |
+|---|---|
+| 系统 | Windows 10 1809+ / Windows 11（x64）；需要管理员权限 |
+| 磁盘 | 建议 ≥ 5 GB 可用（QQ + AstrBot 运行时 + 模型网关） |
+| 运行时 | Python 3.10–3.13（Launcher 会自带隔离环境）、Node.js 20+、Go 1.21+（仅从源码构建网关时需要） |
+| 网络 | 能访问 GitHub 与腾讯服务；局域网内另一台机器可用 SSH 连入做运维 |
+| 账号 | 一个 QQ 号（建议小号）、一个 WorkBuddy 账号 |
+
+## 使用
+
+1. 克隆仓库到目标机（或先在本机准备再同步过去），目录约定见 [docs/ARCHITECTURE.md](https://github.com/MVennn/QQBotStack/blob/main/docs/ARCHITECTURE.md) §3。
+2. 跑部署脚本，它会把三块组件按顺序铺到 `runtime/` 下：
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File tools\deploy-stack.ps1 -Stage all
+   ```
+
+   分阶段跑用 `-Stage gateway` / `-Stage napcat` / `-Stage astrbot`，可重复执行。
+3. 需要人工的两步（脚本会打印提示）：NapCat 安装器要交互选择目录、QQ 首次登录要扫码。
+4. 全部就位后跑验收：
+
+   ```sh
+   python tools/verify-stack.py --conf host/stack.conf
+   ```
+
+   它会依次验模型目录、网关连通、AstrBot 面板、NapCat 连接与一次端到端问答。失败项会指向 [docs/TROUBLESHOOTING.md](https://github.com/MVennn/QQBotStack/blob/main/docs/TROUBLESHOOTING.md) 的条目号。
+5. 日常运维在**操作机**上跑同一支脚本：
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File tools\start-stack.ps1 -Status   # 只看
+   powershell -ExecutionPolicy Bypass -File tools\start-stack.ps1           # 缺什么起什么
+   powershell -ExecutionPolicy Bypass -File tools\start-stack.ps1 -Restart astrbot
+   ```
+
+   它会经 SSH 驱动目标机的计划任务；第一次跑会顺手把 NapCat 的登录自启任务建好，
+   之后不用再远程登录进 `runtime\napcat\onekey\NapCat.*.Shell` 双击 `napcat.bat`。
+   参数与退出码见 [docs/TOOLS.md](https://github.com/MVennn/QQBotStack/blob/main/docs/TOOLS.md) §1.4。
+
+## 反馈
+
+装不上、验收项对不上、想要新的运维能力，到 [Issues](https://github.com/MVennn/QQBotStack/issues) 反馈。请带上：
+
+- 目标机的 Windows 版本（`winver`）
+- 出问题的是哪一块（网关 / 协议端 / 机器人）
+- 执行的完整命令与输出原文（贴前先抹掉 QQ 号、账号与 token）
+
+踩过的坑见 [docs/PITFALLS.md](https://github.com/MVennn/QQBotStack/blob/main/docs/PITFALLS.md)，按现象查见 [docs/TROUBLESHOOTING.md](https://github.com/MVennn/QQBotStack/blob/main/docs/TROUBLESHOOTING.md)。想参与贡献见 [CONTRIBUTING](https://github.com/MVennn/QQBotStack/blob/main/CONTRIBUTING.md)，安全问题按 [SECURITY](https://github.com/MVennn/QQBotStack/blob/main/SECURITY.md) 报告。
+
+## 免责声明
+
+本项目仅供学习与个人使用。
+
+- 部署脚本**会改目标机的系统状态**（安装 QQ 与 AstrBot、创建计划任务、写配置）。执行前请看清它每一步做什么。
+- **QQ 协议端登录存在账号风险**。请使用小号，不要用主号；因使用本项目导致的账号异常由使用者自行承担。
+- 本仓库**不保存任何凭据** —— WorkBuddy token、网关 API key、QQ 登录态都在 `runtime/` 下且不入库，位置见 [docs/SECRETS.md](https://github.com/MVennn/QQBotStack/blob/main/docs/SECRETS.md)。
+- 所有结论都是在特定版本与网络环境下实测的，换环境后**必须重新验证**。
+- 本项目与腾讯、AstrBot、NapCat 的维护者均无隶属或合作关系。
+
+「QQ」「AstrBot」「NapCat」等名称与标识的权利均归其各自权利人所有。
+
+## 开源鸣谢
+
+本仓库建立在这些项目之上（详见 [NOTICE](https://github.com/MVennn/QQBotStack/blob/main/NOTICE)）：
+
+| 项目 | 用途 | 许可 |
+|---|---|---|
+| [**AstrBot**](https://github.com/AstrBotDevs/AstrBot) | bot 框架：模型、插件、平台适配 | AGPL-3.0 |
+| [**AstrBot Launcher**](https://github.com/AstrBotDevs/astrbot-launcher) | 隔离安装与多实例管理 | MIT |
+| [**NapCatQQ**](https://github.com/NapNeko/NapCatQQ) | QQ 协议端，提供 OneBot 11 | 自定义（限再分发、非商业） |
+| [**workbuddy2api**](https://github.com/linguo2625469/workbuddy2api-panel) | WorkBuddy 账号池 → OpenAI 兼容网关 | MIT |
+
+## 许可证
+
+本仓库以 [MIT License](https://github.com/MVennn/QQBotStack/blob/main/LICENSE) 发布；上游组件的版权与许可证声明见 [NOTICE](https://github.com/MVennn/QQBotStack/blob/main/NOTICE)。

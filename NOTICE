@@ -1,0 +1,77 @@
+QQBotStack
+Copyright 2026 M.Venn
+
+This product is licensed under the MIT License. See the LICENSE file in the
+repository root for the full text.
+
+==============================================================================
+Third-party software and services
+==============================================================================
+
+This repository contains **no third-party source code and redistributes no
+third-party binaries**. Every component below is downloaded from its official
+release page at deploy time; see docs/ARCHITECTURE.md section 2.
+
+- AstrBot (https://github.com/AstrBotDevs/AstrBot)
+  The bot framework: LLM providers, plugins, platform adapters, WebUI.
+  Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+  Why used: it is the bot brain this stack deploys. Because it is AGPL, this
+  repository must not vendor its code or ship a modified build.
+
+- AstrBot Launcher (https://github.com/AstrBotDevs/astrbot-launcher)
+  Desktop launcher that installs AstrBot into an isolated directory, manages
+  instances and their Python runtime, and stays in the system tray.
+  Licensed under the MIT License.
+  Why used: it isolates the Python environment per instance, so the bot does
+  not depend on (or pollute) the machine's system Python.
+
+- NapCatQQ (https://github.com/NapNeko/NapCatQQ)
+  The QQ protocol side: runs on top of QQ NT and exposes OneBot 11.
+  Licensed under a **custom "Limited Redistribution License"** (non-commercial;
+  redistribution allowed only with the full license text and clear attribution;
+  modified builds may not be published).
+  Why used: it is the only maintained way to bridge QQ to OneBot 11.
+  This repository therefore never bundles, patches, or republishes it.
+
+- workbuddy2api (https://github.com/linguo2625469/workbuddy2api-panel)
+  A multi-account gateway that turns Tencent WorkBuddy accounts into an
+  OpenAI-compatible API. Built from source into `wb2api.exe`.
+  Licensed under the MIT License (original project by Sliverkiss).
+  Why used: it is the model gateway this stack points AstrBot at.
+
+- astrbot_plugin_parser (https://github.com/Zhalslar/astrbot_plugin_parser)
+  Optional AstrBot plugin that parses Bilibili / Douyin / Kuaishou /
+  Xiaohongshu links and QQ mini-app cards, downloads media and renders cards.
+  Licensed under the MIT License.
+  Why used: it is the media parser behind `qqbotstack_guard.parse_share_link`.
+  Installed from the AstrBot plugin market at deploy time; never vendored here.
+
+- astrbot_plugin_music (https://github.com/Zhalslar/astrbot_plugin_music)
+  Optional AstrBot plugin that searches music sources and sends QQ music cards.
+  Licensed under the GNU General Public License v3.0 (GPL-3.0).
+  Why used: it provides the `play_song_by_name` LLM tool for natural-language
+  song requests. It is installed as an **external plugin** and is not vendored;
+  if you redistribute a modified copy, GPL-3.0 obligations apply to that copy.
+
+- ffmpeg (https://ffmpeg.org/)
+  Optional portable build used to merge Bilibili DASH audio/video streams and
+  transcode AAC profiles. Not redistributed here; download it from the official
+  build page at deploy time. License depends on the build (LGPL/GPL).
+
+- QQ NT (https://im.qq.com/)
+  Tencent's QQ client. Installed by the NapCat one-key package; no Tencent code
+  is redistributed here.
+
+- Go / Python / Node.js
+  Toolchains used to build or run the components above. Not redistributed.
+
+==============================================================================
+Credentials
+==============================================================================
+
+This repository stores **no credentials**. WorkBuddy access tokens live in
+`runtime/workbuddy/auths/`, the gateway API key lives in
+`runtime/workbuddy/config.json`, and both are excluded by `.gitignore`.
+QQ login state is held by QQ NT itself.
+
+See docs/SECRETS.md for the location index.

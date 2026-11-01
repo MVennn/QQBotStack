@@ -1,0 +1,5 @@
+name: qqbotstack_tools
+display_name: 媒体与小功能
+desc: 分享解析、吃什么、API 小工具，以及 parser/apis/what_to_eat 的运行时接管
+author: M.Venn
+version: 1.0.0

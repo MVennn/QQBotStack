@@ -1,0 +1,22 @@
+# 统一按 LF 检出。
+#
+# 本仓同时有在 Windows 上跑的 .ps1 / .cmd 和在 Linux CI 上跑的 .py：
+# PowerShell 与 cmd 都能正确处理 LF，但 sh 与 python 不能容忍 CRLF 残留，
+# 所以统一锁 LF；`tools/deploy-stack.ps1` 里写出的 .cmd 由脚本自己用 CRLF 落盘。
+* text=auto eol=lf
+
+# 二进制文件不参与任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.gz binary
+*.tgz binary
+*.zip binary
+*.tar binary
+*.exe binary
+*.msi binary
+*.woff binary
+*.woff2 binary

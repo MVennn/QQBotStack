@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>世界书 · 编辑器</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f4ef;
+    --panel: #fffdf8;
+    --line: rgba(60, 60, 60, .16);
+    --text: #23211e;
+    --muted: #6f6a62;
+    --accent: #2b3a55;
+    --accent-2: #b8862f;
+    --danger: #b3402f;
+    --chip: rgba(43, 58, 85, .09);
+    --shadow: 0 8px 28px rgba(35, 33, 30, .10);
+  }
+  html[data-theme="dark"] {
+    --bg: #17181b;
+    --panel: #202226;
+    --line: rgba(255, 255, 255, .14);
+    --text: #e8e4dc;
+    --muted: #a39d92;
+    --accent: #9db4d8;
+    --accent-2: #d8a94a;
+    --danger: #e07a68;
+    --chip: rgba(157, 180, 216, .14);
+    --shadow: 0 8px 28px rgba(0, 0, 0, .35);
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --bg: #17181b; --panel: #202226; --line: rgba(255,255,255,.14);
+      --text: #e8e4dc; --muted: #a39d92; --accent: #9db4d8;
+      --accent-2: #d8a94a; --danger: #e07a68; --chip: rgba(157,180,216,.14);
+      --shadow: 0 8px 28px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px 22px 40px; background: var(--bg); color: var(--text);
+    font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  h1 { font-size: 19px; margin: 0; letter-spacing: .3px; }
+  .sub { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 16px 0 12px; }
+  input[type="search"], input[type="number"], input[type="text"], textarea {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 9px; padding: 8px 11px; font: inherit; outline: none;
+  }
+  input[type="search"]:focus, input[type="number"]:focus, input[type="text"]:focus, textarea:focus {
+    border-color: var(--accent);
+  }
+  #search { flex: 1 1 240px; }
+  button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 9px; padding: 8px 13px; font: inherit; cursor: pointer;
+    transition: border-color .15s, transform .05s;
+  }
+  button:hover { border-color: var(--accent); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--danger); }
+  button.ghost { background: transparent; }
+  .count { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .list { display: grid; gap: 10px; }
+  .entry {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 13px 15px; box-shadow: var(--shadow);
+  }
+  .entry.constant { border-left: 4px solid var(--accent-2); }
+  .entry-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .entry-name { font-weight: 600; }
+  .badge {
+    font-size: 11px; padding: 1px 8px; border-radius: 999px;
+    background: rgba(184, 134, 47, .16); color: var(--accent-2);
+  }
+  .badge.pri { background: var(--chip); color: var(--muted); }
+  .keys { display: flex; gap: 6px; flex-wrap: wrap; margin: 7px 0 8px; }
+  .key { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+  .content { color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .entry-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .empty { color: var(--muted); text-align: center; padding: 36px 0; }
+  dialog {
+    border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
+    color: var(--text); padding: 0; width: min(760px, 94vw); box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, .45); }
+  .dlg-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .dlg-head h2 { font-size: 16px; margin: 0; }
+  .dlg-body { padding: 16px 18px; display: grid; gap: 12px; max-height: 68vh; overflow: auto; }
+  .field { display: grid; gap: 5px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field textarea { min-height: 120px; resize: vertical; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .row .field { flex: 1 1 180px; }
+  .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+  .check { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+  .match-box { margin-top: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .match-box pre { white-space: pre-wrap; word-break: break-word; color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+  #toast {
+    position: fixed; right: 20px; bottom: 20px; padding: 9px 14px; border-radius: 10px;
+    background: var(--accent); color: #fff; font-size: 13px; opacity: 0;
+    transform: translateY(6px); transition: opacity .18s, transform .18s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.error { background: var(--danger); }
+  .hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1 id="title">世界书</h1>
+      <p class="sub" id="subtitle">加载中…</p>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="搜索名称 / 关键词 / 正文">
+    <label class="check"><input id="onlyConstant" type="checkbox"> 只看常驻</label>
+    <button class="primary" id="btnNew">新建条目</button>
+    <button id="btnReload">重新加载</button>
+    <button id="btnImport">导入</button>
+    <button id="btnExport">导出</button>
+    <input id="fileInput" type="file" accept=".json,application/json" hidden>
+  </div>
+
+  <div class="toolbar">
+    <input id="matchText" type="text" placeholder="匹配预览：输入一句群聊，看看会注入哪些条目" style="flex:1 1 320px">
+    <button id="btnMatch">预览</button>
+  </div>
+  <div class="match-box" id="matchBox" hidden>
+    <strong>本轮会注入</strong>
+    <div class="keys" id="matchPicked"></div>
+    <pre id="matchBlock"></pre>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <dialog id="editor">
+    <form id="entryForm" method="dialog">
+      <div class="dlg-head">
+        <h2 id="dlgTitle">新建条目</h2>
+        <button type="button" class="ghost" id="btnClose">关闭</button>
+      </div>
+      <div class="dlg-body">
+        <div class="field">
+          <label for="fName">名称</label>
+          <input id="fName" type="text" placeholder="例：卷零 · 此刻 · 当前阶段" required>
+        </div>
+        <div class="field">
+          <label for="fKeys">关键词（逗号或顿号分隔；常驻条目可留空）</label>
+          <textarea id="fKeys" placeholder="当前阶段, 中期, 绿海" style="min-height:70px"></textarea>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="fPriority">优先级（0–100）</label>
+            <input id="fPriority" type="number" min="0" max="100" value="50">
+          </div>
+          <label class="check"><input id="fConstant" type="checkbox"> 常驻（每轮都注入）</label>
+        </div>
+        <div class="field">
+          <label for="fContent">正文</label>
+          <textarea id="fContent" placeholder="设定内容…" required></textarea>
+        </div>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" class="danger ghost" id="btnDelete" hidden>删除</button>
+        <button type="button" id="btnCancel">取消</button>
+        <button type="submit" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast"></div>
+
+<script type="module">
+const bridge = window.AstrBotPluginPage || null;
+const API = {
+  entries: "entries",
+  entry: "entry",
+  match: "match",
+  import: "import",
+  reload: "reload",
+};
+let state = { title: "", entries: [], editing: null };
+let toastTimer = 0;
+
+function toast(message, isError) {
+  const el = document.getElementById("toast");
+  el.textContent = message;
+  el.classList.toggle("error", !!isError);
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function unwrap(response) {
+  if (response && typeof response === "object" && "ok" in response) {
+    if (!response.ok) throw new Error(response.message || "请求失败");
+    return response.data !== undefined ? response.data : response;
+  }
+  return response;
+}
+
+async function apiGet(path, params) {
+  if (!bridge || !bridge.apiGet) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  return unwrap(await bridge.apiGet(path, params || {}));
+}
+
+async function apiPost(path, body) {
+  if (!bridge || !bridge.apiPost) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  return unwrap(await bridge.apiPost(path, body || {}));
+}
+
+// 页面桥接只有 apiGet/apiPost，删除走后端的 POST /entry/delete。
+async function apiDelete(path, params) {
+  return apiPost(path + "/delete", params || {});
+}
+
+function esc(text) {
+  return String(text == null ? "" : text)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function matches(entry, query) {
+  if (!query) return true;
+  const hay = [entry.name, entry.content, (entry.keys || []).join(" ")].join(" ").toLowerCase();
+  return hay.includes(query.toLowerCase());
+}
+
+function render() {
+  document.getElementById("title").textContent = state.title || "世界书";
+  document.getElementById("subtitle").textContent =
+    "共 " + state.entries.length + " 条；常驻 " +
+    state.entries.filter(e => e.constant).length + " 条";
+  const query = document.getElementById("search").value.trim();
+  const onlyConstant = document.getElementById("onlyConstant").checked;
+  const items = state.entries.filter(e => (!onlyConstant || e.constant) && matches(e, query));
+  document.getElementById("count").textContent = items.length + " / " + state.entries.length;
+
+  const list = document.getElementById("list");
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">没有匹配的条目</div>';
+    return;
+  }
+  list.innerHTML = items.map(entry => {
+    const keys = (entry.keys || []).map(k => '<span class="key">' + esc(k) + '</span>').join("");
+    return (
+      '<article class="entry' + (entry.constant ? " constant" : "") + '">' +
+        '<div class="entry-head">' +
+          '<span class="entry-name">' + esc(entry.name) + '</span>' +
+          (entry.constant ? '<span class="badge">常驻</span>' : '') +
+          '<span class="badge pri">优先级 ' + esc(entry.priority) + '</span>' +
+        '</div>' +
+        '<div class="keys">' + keys + '</div>' +
+        '<div class="content">' + esc(entry.content) + '</div>' +
+        '<div class="entry-actions">' +
+          '<button type="button" data-edit="' + esc(entry.name) + '">编辑</button>' +
+          '<button type="button" class="danger ghost" data-del="' + esc(entry.name) + '">删除</button>' +
+        '</div>' +
+      '</article>'
+    );
+  }).join("");
+}
+
+async function load() {
+  const data = await apiGet(API.entries);
+  state.title = data.title || "";
+  state.entries = Array.isArray(data.entries) ? data.entries : [];
+  render();
+}
+
+function openEditor(entry) {
+  state.editing = entry || null;
+  document.getElementById("dlgTitle").textContent = entry ? "编辑条目" : "新建条目";
+  document.getElementById("fName").value = entry ? entry.name : "";
+  document.getElementById("fKeys").value = entry ? (entry.keys || []).join(", ") : "";
+  document.getElementById("fPriority").value = entry ? entry.priority : 50;
+  document.getElementById("fConstant").checked = !!(entry && entry.constant);
+  document.getElementById("fContent").value = entry ? entry.content : "";
+  document.getElementById("btnDelete").hidden = !entry;
+  document.getElementById("editor").showModal();
+}
+
+function closeEditor() {
+  document.getElementById("editor").close();
+  state.editing = null;
+}
+
+async function saveEntry(event) {
+  event.preventDefault();
+  const payload = {
+    original_name: state.editing ? state.editing.name : "",
+    name: document.getElementById("fName").value.trim(),
+    keys: document.getElementById("fKeys").value,
+    priority: Number(document.getElementById("fPriority").value || 50),
+    constant: document.getElementById("fConstant").checked,
+    content: document.getElementById("fContent").value,
+  };
+  try {
+    const data = await apiPost(API.entry, payload);
+    state.title = data.title || state.title;
+    state.entries = data.entries || [];
+    render();
+    closeEditor();
+    toast("已保存");
+  } catch (err) {
+    toast(err.message || "保存失败", true);
+  }
+}
+
+async function deleteEntry(name) {
+  if (!confirm("删除条目「" + name + "」？")) return;
+  try {
+    const data = await apiDelete(API.entry, { name });
+    state.entries = data.entries || [];
+    render();
+    closeEditor();
+    toast("已删除");
+  } catch (err) {
+    toast(err.message || "删除失败", true);
+  }
+}
+
+async function doMatch() {
+  const text = document.getElementById("matchText").value.trim();
+  if (!text) { toast("先输入一句群聊", true); return; }
+  try {
+    const data = await apiPost(API.match, { text });
+    document.getElementById("matchBox").hidden = false;
+    document.getElementById("matchPicked").innerHTML = (data.picked || [])
+      .map(e => '<span class="key">' + esc(e.name) + '</span>').join("") || '<span class="hint">没有命中条目</span>';
+    document.getElementById("matchBlock").textContent = data.block || "（本轮不注入世界书）";
+  } catch (err) {
+    toast(err.message || "预览失败", true);
+  }
+}
+
+function doExport() {
+  const payload = JSON.stringify({ name: state.title, entries: state.entries }, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "worldbook.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function doImport(file) {
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+    if (!Array.isArray(entries)) throw new Error("JSON 里没有 entries 数组");
+    if (!confirm("导入会替换当前全部 " + state.entries.length + " 条，继续？")) return;
+    const data = await apiPost(API.import, { title: parsed.name || state.title, entries });
+    state.title = data.title || state.title;
+    state.entries = data.entries || [];
+    render();
+    toast("已导入 " + state.entries.length + " 条");
+  } catch (err) {
+    toast(err.message || "导入失败", true);
+  }
+}
+
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("onlyConstant").addEventListener("change", render);
+document.getElementById("btnNew").addEventListener("click", () => openEditor(null));
+document.getElementById("btnReload").addEventListener("click", async () => {
+  try { await apiPost(API.reload, {}); await load(); toast("已重新加载"); }
+  catch (err) { toast(err.message || "加载失败", true); }
+});
+document.getElementById("btnExport").addEventListener("click", doExport);
+document.getElementById("btnImport").addEventListener("click", () => document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", event => {
+  const file = event.target.files && event.target.files[0];
+  if (file) doImport(file);
+  event.target.value = "";
+});
+document.getElementById("btnMatch").addEventListener("click", doMatch);
+document.getElementById("entryForm").addEventListener("submit", saveEntry);
+document.getElementById("btnClose").addEventListener("click", closeEditor);
+document.getElementById("btnCancel").addEventListener("click", closeEditor);
+document.getElementById("btnDelete").addEventListener("click", () => {
+  if (state.editing) deleteEntry(state.editing.name);
+});
+document.getElementById("list").addEventListener("click", event => {
+  const edit = event.target.closest("[data-edit]");
+  if (edit) {
+    const entry = state.entries.find(e => e.name === edit.dataset.edit);
+    if (entry) openEditor(entry);
+    return;
+  }
+  const del = event.target.closest("[data-del]");
+  if (del) deleteEntry(del.dataset.del);
+});
+
+// AstrBot 会通过 ?theme=dark|light 传主题；没有就跟随系统。
+const themeParam = new URLSearchParams(location.search).get("theme");
+if (themeParam === "dark" || themeParam === "light") {
+  document.documentElement.dataset.theme = themeParam;
+}
+
+load().catch(err => {
+  document.getElementById("subtitle").textContent = "加载失败：" + (err.message || err);
+  toast(err.message || "加载失败", true);
+});
+</script>
+</body>
+</html>

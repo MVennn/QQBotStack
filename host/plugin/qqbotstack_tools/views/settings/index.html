@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>媒体与小功能 · 设置</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f2f7f6; --panel:#fdfefd; --line:rgba(40,70,65,.18);
+    --text:#1d2a27; --muted:#63756f; --accent:#1f7a6b; --accent2:#b8862f;
+    --chip:rgba(31,122,107,.10); --shadow:0 8px 28px rgba(29,42,39,.10); --danger:#b3402f;
+  }
+  html[data-theme="dark"] {
+    --bg:#141b1a; --panel:#1c2523; --line:rgba(255,255,255,.14);
+    --text:#e2ece8; --muted:#93a8a1; --accent:#6fc3b1; --accent2:#d8a94a;
+    --chip:rgba(111,195,177,.14); --shadow:0 8px 28px rgba(0,0,0,.35); --danger:#e07a68;
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --bg:#141b1a; --panel:#1c2523; --line:rgba(255,255,255,.14);
+      --text:#e2ece8; --muted:#93a8a1; --accent:#6fc3b1; --accent2:#d8a94a;
+      --chip:rgba(111,195,177,.14); --shadow:0 8px 28px rgba(0,0,0,.35); --danger:#e07a68;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:20px 22px 40px; background:var(--bg); color:var(--text);
+    font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+  h1 { font-size:19px; margin:0; } .sub { color:var(--muted); font-size:12px; margin:3px 0 0; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px 20px; box-shadow:var(--shadow); max-width:820px; margin-top:16px; }
+  h2 { font-size:13px; color:var(--muted); margin:0 0 10px; letter-spacing:.4px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+  .field { display:grid; gap:5px; }
+  .field label { font-size:12px; color:var(--muted); }
+  textarea, input[type="number"] { background:var(--bg); color:var(--text);
+    border:1px solid var(--line); border-radius:9px; padding:8px 11px; font:inherit; outline:none; }
+  textarea { min-height:110px; resize:vertical; }
+  textarea:focus, input:focus { border-color:var(--accent); }
+  .check { display:flex; align-items:center; gap:8px; font-size:13px; }
+  .actions { display:flex; gap:10px; align-items:center; margin-top:16px; }
+  button { background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:9px; padding:8px 14px; font:inherit; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:hover { border-color:var(--accent); }
+  .hint { color:var(--muted); font-size:12px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { font-size:11px; padding:2px 9px; border-radius:999px; background:var(--chip); color:var(--muted); }
+  #toast { position:fixed; right:20px; bottom:20px; padding:9px 14px; border-radius:10px;
+    background:var(--accent); color:#fff; font-size:13px; opacity:0; transition:opacity .18s; pointer-events:none; }
+  #toast.show { opacity:1; } #toast.error { background:var(--danger); }
+</style>
+</head>
+<body>
+  <h1>媒体与小功能</h1>
+  <p class="sub" id="sub">读取中…</p>
+
+  <form class="panel" id="form">
+    <h2>API 小功能白名单</h2>
+    <div class="field">
+      <label for="allowlist">每行一个，或用逗号/顿号分隔；模型只能从这里选</label>
+      <textarea id="allowlist" placeholder="讲个笑话, 来句诗, 电脑壁纸"></textarea>
+    </div>
+    <div class="chips" id="allowCount"></div>
+
+    <h2 style="margin-top:18px">运行时接管</h2>
+    <div class="grid">
+      <label class="check"><input type="checkbox" id="tp"> 接管 parser 自动解析</label>
+      <label class="check"><input type="checkbox" id="ta"> 接管 apis 自动回复</label>
+      <label class="check"><input type="checkbox" id="tf"> 接管 what_to_eat 自动回复</label>
+    </div>
+    <p class="hint">接管后由模型调用工具，插件不再抢答；关闭后对应插件会恢复自己的固定回复。</p>
+
+    <h2 style="margin-top:18px">分享兜底</h2>
+    <div class="grid">
+      <label class="check"><input type="checkbox" id="fallback"> parser 失败时用 yt-dlp / OG 取标题封面</label>
+      <div class="field">
+        <label for="timeout">兜底超时（秒）</label>
+        <input id="timeout" type="number" min="3" max="60" step="1">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary">保存</button>
+      <button type="button" id="reload">重新读取</button>
+      <span class="hint" id="status"></span>
+    </div>
+  </form>
+
+  <div id="toast"></div>
+<script type="module">
+const bridge = window.AstrBotPluginPage || null;
+let toastTimer = 0;
+function toast(msg, err) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.toggle("error", !!err); el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 2000);
+}
+function unwrap(res) {
+  if (res && typeof res === "object" && "ok" in res) {
+    if (!res.ok) throw new Error(res.message || "请求失败");
+    return res.data !== undefined ? res.data : res;
+  }
+  return res;
+}
+async function apiGet(path) {
+  if (!bridge || !bridge.apiGet) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  return unwrap(await bridge.apiGet(path, {}));
+}
+async function apiPost(path, body) {
+  if (!bridge || !bridge.apiPost) throw new Error("页面桥接不可用，请从 AstrBot WebUI 打开");
+  return unwrap(await bridge.apiPost(path, body));
+}
+function fill(d) {
+  document.getElementById("allowlist").value = (d.api_allowlist || []).join(", ");
+  document.getElementById("tp").checked = !!d.takeover_parser;
+  document.getElementById("ta").checked = !!d.takeover_apis;
+  document.getElementById("tf").checked = !!d.takeover_food;
+  document.getElementById("fallback").checked = !!d.share_fallback_enabled;
+  document.getElementById("timeout").value = Math.round(d.share_meta_timeout || 10);
+  document.getElementById("allowCount").innerHTML =
+    '<span class="chip">白名单 ' + (d.api_allowlist || []).length + ' 项</span>';
+  document.getElementById("sub").textContent = "白名单 " + (d.api_allowlist || []).length + " 项";
+}
+async function load() {
+  try { fill(await apiGet("config")); document.getElementById("status").textContent = ""; }
+  catch (err) { document.getElementById("sub").textContent = "读取失败：" + (err.message || err); toast(err.message || "读取失败", true); }
+}
+document.getElementById("form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const body = {
+    api_allowlist: document.getElementById("allowlist").value
+      .split(/[,，、\n]/).map(s => s.trim()).filter(Boolean),
+    takeover_parser: document.getElementById("tp").checked,
+    takeover_apis: document.getElementById("ta").checked,
+    takeover_food: document.getElementById("tf").checked,
+    share_fallback_enabled: document.getElementById("fallback").checked,
+    share_meta_timeout: Number(document.getElementById("timeout").value || 10),
+  };
+  try {
+    fill(await apiPost("config", body));
+    document.getElementById("status").textContent = "已保存并生效";
+    toast("已保存");
+  } catch (err) { toast(err.message || "保存失败", true); }
+});
+document.getElementById("reload").addEventListener("click", load);
+const themeParam = new URLSearchParams(location.search).get("theme");
+if (themeParam === "dark" || themeParam === "light") document.documentElement.dataset.theme = themeParam;
+load();
+</script>
+</body>
+</html>

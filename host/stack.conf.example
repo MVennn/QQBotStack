@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------------
+# stack.conf —— 主机与账号配置（本文件不入库）
+#
+# 用法：复制本文件为 stack.conf，把占位符换成真值。
+#   cp host/stack.conf.example host/stack.conf
+#
+# 读取顺序（tools/verify-stack.py）：命令行参数 → 本文件 → 默认值。
+# 字段说明见 docs/SECRETS.md §3。
+#
+# 注意：stack.conf 被 .gitignore 排除。不要把真值提交进版本库。
+# ---------------------------------------------------------------------------
+
+# 目标机地址（必填）
+host=<HOST-IP>
+
+# 登录用户名（必填）
+user=<HOST-USER>
+
+# SSH 端口（可选，默认 22）
+ssh_port=22
+
+# 各服务端口（可选，默认值如下；改过才需要写）
+gateway_port=7863
+astrbot_port=6185
+napcat_port=6099
+onebot_port=6199
+
+# 网关 api_key（必填；也可用 --key 传，避免写在文件里）
+api_key=<REDACTED-TOKEN>
+
+# bot 的 QQ 号（可选，只用于自检展示，不参与连接）
+qq=<QQ-ID>

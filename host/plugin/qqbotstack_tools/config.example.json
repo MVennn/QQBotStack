@@ -1,0 +1,26 @@
+{
+  "api_allowlist": [
+    "安慰",
+    "讲个笑话",
+    "来点段子",
+    "来句诗",
+    "讲讲古诗",
+    "挑战古诗词",
+    "来句情话",
+    "毒鸡汤",
+    "来碗鸡汤",
+    "人品运势",
+    "看看黄历",
+    "二次元形象",
+    "动漫一言",
+    "电脑壁纸",
+    "高清壁纸",
+    "今日运势",
+    "bing图"
+  ],
+  "takeover_parser": true,
+  "takeover_apis": true,
+  "takeover_food": true,
+  "share_fallback_enabled": true,
+  "share_meta_timeout": 10.0
+}

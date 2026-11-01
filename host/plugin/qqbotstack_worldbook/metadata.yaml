@@ -1,0 +1,5 @@
+name: qqbotstack_worldbook
+display_name: 世界书
+desc: 管理并注入角色扮演世界书：关键词匹配、常驻条目、优先级，带 WebUI 编辑器
+author: M.Venn
+version: 1.0.0
