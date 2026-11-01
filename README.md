@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" width="128" alt="QQBotStack">
+<img src="https://raw.githubusercontent.com/MVennn/QQBotStack/main/assets/logo.png" width="128" alt="QQBotStack">
 
 # QQBotStack
 
