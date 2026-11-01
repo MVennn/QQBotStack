@@ -42,6 +42,8 @@ napcat_port=6099        # 可选，默认 6099
 onebot_port=6199        # 可选，默认 6199
 api_key=<REDACTED-TOKEN>  # 网关 api_key；也可用 --key 传
 qq=<QQ-ID>              # 可选，bot 的 QQ 号（只用于自检展示，不参与连接）
+auths_source=<工作区>\ZcodeAIModels\...  # 可选；sync-auths.ps1 的本地源目录
+deploy_root=<DEPLOY-ROOT>  # 可选；sync-auths.ps1 的目标机部署根
 ```
 
 ## 4. 占位符口径

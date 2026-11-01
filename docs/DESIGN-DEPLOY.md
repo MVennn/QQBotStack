@@ -6,7 +6,7 @@
 - 日期：2026-10-26
 - 状态：**待确认**（未动目标机、未建仓、未传数据）
 - 目标机：局域网 Windows 主机（地址与账户见不入库的 `.work/`，下文记 `<HOST>`）
-- 部署位置：`<HOST>:F:\Tools\AITool\QQBotStack`
+- 部署位置：`<HOST>:<部署根>\QQBotStack`
 
 ---
 
@@ -49,13 +49,13 @@
 | 硬件 | 8 逻辑核 / 15.9 GB 内存 |
 | 磁盘 | C 剩 188 GB、**F 剩 190 GB**、K 剩 10.5 GB |
 | 运行时 | Python 3.13.7、Node v24.13.1、Go 1.26.0、Git、Docker 全部就绪 |
-| `F:\Tools\AITool` | **已存在**，内含 `MySillyTavern`（我们的目录与它平级） |
+| `<部署根>` | **已存在**，内含既有其他应用（本仓目录与其平级） |
 | QQ | **未安装**（无 `C:\Program Files\Tencent`，无 QQ 进程） |
 | 目标端口 | 6099 / 6185 / 6199 / 7863 / 7871 均空闲 |
 
 ### 2.3 本地 workbuddy2api 数据
 
-来源：`F:\Project\ZcodeAIModels\gateways\upstream\workbuddy`（已构建好 `wb2api.exe`）。
+来源：`<工作区>\ZcodeAIModels\gateways\upstream\workbuddy`（已构建好 `wb2api.exe`）。
 
 | 内容 | 大小/数量 | 说明 | 是否迁移 |
 |---|---|---|---|
@@ -91,7 +91,7 @@
 ## 三、架构
 
 ```text
-                         目标机 <HOST>（F:\Tools\AITool\QQBotStack\runtime\）
+                         目标机 <HOST>（<部署根>\QQBotStack\runtime\）
   ┌──────────────────────────────────────────────────────────────────────────┐
   │                                                                          │
   │   QQ 用户 ──消息──▶  NapCat (QQ NT + 协议端)                                │
@@ -118,7 +118,7 @@ SSH 通道，不需要在目标机上再开任何入站端口。
 
 ## 四、改动清单
 
-### 4.1 目标机（全部在 `F:\Tools\AITool\QQBotStack\` 之内）
+### 4.1 目标机（全部在 `<部署根>\QQBotStack\` 之内）
 
 ```text
 QQBotStack\
@@ -131,7 +131,7 @@ QQBotStack\
 
 | 改动 | 具体 |
 |---|---|
-| 新建目录 | `F:\Tools\AITool\QQBotStack\`（与既有 `MySillyTavern` 平级） |
+| 新建目录 | `<部署根>\QQBotStack\`（与既有其他应用平级） |
 | 传文件 | `wb2api.exe`、`config.json`、`auths/`、`data/state.json`、`data/usage.json` |
 | 安装 | NapCat OneKey（自动装 QQ）；AstrBot Launcher |
 | 服务/自启 | wb2api 与 NapCat 需要开机自启；AstrBot 由启动器托管 |
@@ -141,7 +141,7 @@ QQBotStack\
 
 | 改动 | 具体 |
 |---|---|
-| 建仓 | `F:\Project\QQBotStack`（GSAuxiliary 骨架 + docs 四分类） |
+| 建仓 | `<工作区>\QQBotStack`（GSAuxiliary 骨架 + docs 四分类） |
 | 停用旧网关 | 若确认「迁走」，把本机 `zgate.json` 里 `children.workbuddy` 停用（§八.3） |
 | 运维脚本 | `tools/deploy-*.ps1` / `tools/verify-stack.py`（可重复执行，幂等） |
 
@@ -163,7 +163,7 @@ QQBotStack\
 
 分六步，每步都有可验证的产出，失败即停：
 
-1. **建仓** —— `F:\Project\QQBotStack`，GSAuxiliary 门面 + docs 四分类 + `.gitignore`
+1. **建仓** —— `<工作区>\QQBotStack`，GSAuxiliary 门面 + docs 四分类 + `.gitignore`
    （排除 `runtime/`、`auths/`、`*.log`、`.work/`）。跑 `check-docs.py` / `check-secrets.py`。
 2. **铺运行时目录并迁数据** —— 目标机建 `runtime\workbuddy`，scp 传 `wb2api.exe` + 数据；
    先跑 `wb2api.exe -config config.json` 验证 `/v1/models` 能列出 `global:hy3`。
@@ -195,7 +195,7 @@ QQBotStack\
 
 **回退**：三步即可完全撤除 ——
 ① 停 Launcher 实例与 NapCat、`taskkill /IM wb2api.exe /F`；
-② 删 `F:\Tools\AITool\QQBotStack\runtime`；
+② 删 `<部署根>\QQBotStack\runtime`；
 ③ 本机 `zgate.json` 恢复 `children.workbuddy` 的原策略。
 QQ 与 Launcher 是独立安装的，如需彻底清理由「应用和功能」卸载。
 
@@ -247,14 +247,14 @@ QQ 与 Launcher 是独立安装的，如需彻底清理由「应用和功能」�
 
 ### 5. 仓库远端（推荐：先本地，确认后再建）
 
-本地先建 `F:\Project\QQBotStack` 并跑自检；是否建 GitHub 仓、什么时候推，等你说。
+本地先建 `<工作区>\QQBotStack` 并跑自检；是否建 GitHub 仓、什么时候推，等你说。
 按系列惯例，建仓要补 Issue 表单 + CONTRIBUTING + SECURITY。
 
 ---
 
 ## 九、命名
 
-整合目录定为 **`QQBotStack`**（`F:\Tools\AITool\QQBotStack`）。
+整合目录定为 **`QQBotStack`**（`<部署根>\QQBotStack`）。
 理由：系列仓用 PascalCase + 平台/职能（`OpenwrtOpsToolkit`、`WindowsRemoteOps`），
 `QQBotStack` 一眼看出是「QQ bot 的一套组件栈」，且不绑定其中某一个上游项目
 （叫 `AstrBotStack` 会盖住 NapCat，叫 `QQBot` 又太泛）。

@@ -18,7 +18,7 @@
     host/stack.conf path. Defaults to <repo>\host\stack.conf.
 
 .PARAMETER Source
-    Local auths directory. Defaults to the ZcodeAIModels upstream path.
+    Local auths directory. Defaults to the auths_source key in host/stack.conf.
 
 .PARAMETER StateFile
     Where the last successful sync date is recorded.
@@ -37,7 +37,6 @@ $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($Conf)) { $Conf = Join-Path $RepoRoot 'host\stack.conf' }
-if ([string]::IsNullOrWhiteSpace($Source)) { $Source = 'F:\Project\ZcodeAIModels\gateways\upstream\workbuddy\auths' }
 if ([string]::IsNullOrWhiteSpace($StateFile)) {
     $StateFile = Join-Path $env:LOCALAPPDATA 'QQBotStack\authsync.state'
 }
@@ -71,7 +70,11 @@ if ([string]::IsNullOrWhiteSpace($hostName) -or [string]::IsNullOrWhiteSpace($us
     Write-Log 'fail: host/user missing in stack.conf'
     exit 2
 }
-$remoteDir = 'F:/Tools/AITool/QQBotStack/runtime/workbuddy/auths'
+if ([string]::IsNullOrWhiteSpace($Source)) { $Source = $confMap['auths_source'] }
+$deployRoot = $confMap['deploy_root']
+if ([string]::IsNullOrWhiteSpace($deployRoot)) { Write-Log 'fail: deploy_root missing in stack.conf'; exit 2 }
+if ([string]::IsNullOrWhiteSpace($Source)) { Write-Log 'fail: auths_source missing in stack.conf (use -Source or stack.conf)'; exit 2 }
+$remoteDir = ($deployRoot -replace '\\\\', '/').TrimEnd('/') + '/runtime/workbuddy/auths'
 $target = $userName + '@' + $hostName + ':' + $remoteDir + '/'
 
 if (-not (Test-Path -LiteralPath $Source)) { Write-Log "fail: source not found: $Source"; exit 1 }

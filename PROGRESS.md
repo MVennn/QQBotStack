@@ -7,7 +7,7 @@
 ## 任务目标
 
 在局域网 Windows 主机上，把 AstrBot（bot）、NapCat（QQ 协议端）、workbuddy2api（模型网关）
-整合成一套可运维的栈，落在 `F:\Tools\AITool\QQBotStack`。
+整合成一套可运维的栈，落在 `<部署根>\QQBotStack`。
 仓库按系列仓规范建（基准仓 GSAuxiliary 门面 + docs 四分类），全程脱敏。
 
 ## 步骤清单
