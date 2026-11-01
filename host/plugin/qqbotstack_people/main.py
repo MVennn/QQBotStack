@@ -306,6 +306,16 @@ class PeoplePlugin(Star):
     def _person_lock(self, qq: str) -> asyncio.Lock:
         lock = self._locks.get(qq)
         if lock is None:
+            # 只在超帽时清扫，且只清当前无人持有的锁：热路径（现役单群）
+            # 规模远到不了帽，这段不会执行；交接与获取之间没有挂起点，
+            # 不会出现「拿到被回收的锁」的窗口。
+            if len(self._locks) >= 512:
+                for key in [
+                    key
+                    for key, item in self._locks.items()
+                    if key != qq and not item.locked()
+                ]:
+                    self._locks.pop(key, None)
             lock = asyncio.Lock()
             self._locks[qq] = lock
         return lock
@@ -584,6 +594,12 @@ class PeoplePlugin(Star):
                 random.random() < self.address_prob
                 and now - last_named >= self.address_cooldown_sec
             ):
+                if len(self._last_named) >= 512:
+                    # 只清最旧的一批（现役单群到不了帽，不影响线上行为）。
+                    for old_key, _ in sorted(
+                        self._last_named.items(), key=lambda kv: kv[1]
+                    )[:256]:
+                        self._last_named.pop(old_key, None)
                 self._last_named[key] = now
                 parts.append(
                     f"[称呼]\n这一轮和你说话的人，你可以自然叫一次「{name}」。"
@@ -723,6 +739,16 @@ class PeoplePlugin(Star):
         path = self._person_path(qq)
         if not path or not path.is_file():
             return False
+        stamp = None
+        if not force:
+            try:
+                stamp = path.stat().st_mtime_ns
+            except OSError:
+                stamp = None
+            if stamp is not None and self._extract_stat.get(qq) == stamp:
+                # 文件自上次「没有新消息」的检查后没变过：这次也只会空手而回，
+                # 不必读盘。有新消息必然改写文件，mtime 会变。
+                return False
         person = self._load_person(qq)
         last_ts = float(person.get("last_extract_ts") or 0)
         messages = [
@@ -733,6 +759,8 @@ class PeoplePlugin(Star):
             and str(item.get("text") or "").strip()
         ]
         if not messages:
+            if stamp is not None:
+                self._extract_stat[qq] = stamp
             return False
         last_at = float(person.get("last_extract_at") or 0)
         if not force:
