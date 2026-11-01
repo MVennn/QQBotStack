@@ -76,9 +76,14 @@ powershell -ExecutionPolicy Bypass -File tools\start-stack.ps1 -Restart astrbot
 
 | 参数 | 说明 |
 |---|---|
-| `-Status` | 只报告四块组件的任务状态与进程，不启动、不改状态 |
+| `-Status` | 只报告状况，不启动、不改状态：四块组件的任务+进程、6185/7863/7871 端口探活、**NapCat→AstrBot 链路与 QQ 登录态**（二维码等扫时会直接标出来） |
 | `-Restart` | `astrbot` / `gateway` / `zgate` / `all`；重启后面板能应答（6185）才算完 |
 | `-Wait` | 起完后等几秒再取一次状态，默认 8 |
+
+`-Status` 就是「一切是否正常」的首选入口：AstrBot 面板（6185）只覆盖 bot 自己，
+进程在场也不等于活着（QQ 挂了 5 天进程照样在），端口探活 + OneBot 连接 + 登录态
+三样齐了才算真在线。NapCat 进程探针看的是 QQ.exe 而不是 NapCatWinBootMain.exe
+（后者引导完 QQ 就退出，2026-11-01 修正）。
 | `-Conf` | 默认 `<repo>\host\stack.conf` |
 
 **首次运行**会在目标机上落两个东西：`runtime\napcat\run-napcat.cmd`（找最新的

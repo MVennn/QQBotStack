@@ -121,23 +121,47 @@ foreach ($n in $names) {
     $t = @(Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue)[0]
     if ($t) { $tasks[$n] = [string]$t.State } else { $tasks[$n] = 'Absent' }
 }
-$explorer = @(Get-Process explorer -ErrorAction SilentlyContinue)[0]
-$session = 'none'
-if ($explorer) { $session = 'session ' + $explorer.SessionId }
 $procs = [ordered]@{
-    napcat  = [bool](@(Get-Process NapCatWinBootMain -ErrorAction SilentlyContinue)[0])
+    napcat  = @(@(Get-Process QQ -ErrorAction SilentlyContinue)).Count
     astrbot = [bool](@(Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
         Where-Object { $_.CommandLine -match 'main\.py' })[0])
     wb2api  = [bool](@(Get-Process wb2api -ErrorAction SilentlyContinue)[0])
     zgate   = [bool](@(Get-Process zgate -ErrorAction SilentlyContinue)[0])
 }
+# deploy root: works for both the legacy direct-cmd action and the
+# hidden-run.vbs wrapper action (2026-11-01)
 $root = ''
-$t = @(Get-ScheduledTask -TaskName 'QQBotStack-wb2api' -ErrorAction SilentlyContinue)[0]
+$t = @(Get-ScheduledTask -TaskName 'QQBotStack-astrbot' -ErrorAction SilentlyContinue)[0]
 if ($t) {
-    $exe = [string](@($t.Actions)[0].Execute)
-    if ($exe) { $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe)) }
+    $ex = [string](@($t.Actions)[0].Execute)
+    $ar = [string](@($t.Actions)[0].Arguments)
+    $p = ''
+    if ($ar -match '"([^"]+run-astrbot\.cmd)"') { $p = $Matches[1] }
+    elseif ($ex -like '*run-astrbot.cmd') { $p = $ex.Trim() }
+    if ($p) { $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $p)) }
 }
-$out = [ordered]@{ tasks = $tasks; procs = $procs; session = $session; root = $root }
+# liveness: TCP probes beat process presence (services take time to boot)
+$ports = [ordered]@{}
+foreach ($pt in 6185, 7863, 7871) {
+    $c = New-Object Net.Sockets.TcpClient
+    $ok = $c.ConnectAsync('127.0.0.1', $pt).Wait(1200)
+    $c.Close()
+    $ports[[string]$pt] = [bool]$ok
+}
+# NapCat -> AstrBot link: established connections on the OneBot port 6199
+$link = @(Get-NetTCPConnection -LocalPort 6199 -State Established -ErrorAction SilentlyContinue).Count
+# QQ login state: a fresh qrcode.png means the QR is waiting for a scan
+$qr = ''
+$qrf = @(Get-ChildItem ($root + '\runtime\napcat\onekey\NapCat.*.Shell\versions\*\resources\app\napcat\cache\qrcode.png') -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1)[0]
+if ($qrf) {
+    $age = ((Get-Date) - $qrf.LastWriteTime).TotalMinutes
+    if ($age -lt 10) { $qr = 'pending-since ' + $qrf.LastWriteTime.ToString('HH:mm:ss') }
+}
+$explorer = @(Get-Process explorer -ErrorAction SilentlyContinue)[0]
+$session = 'none'
+if ($explorer) { $session = 'session ' + $explorer.SessionId }
+$out = [ordered]@{ tasks = $tasks; procs = $procs; ports = $ports; link = $link; qr = $qr; session = $session; root = $root }
 Write-Output ('QBS_JSON:' + ($out | ConvertTo-Json -Depth 4 -Compress))
 '@
 
@@ -172,6 +196,23 @@ function Write-Status {
         elseif ($state -eq 'Running') { Write-Host $line -ForegroundColor Yellow }
         else { Write-Host $line -ForegroundColor DarkYellow }
     }
+    $p6185 = [bool]$Snapshot.ports.'6185'
+    $p7863 = [bool]$Snapshot.ports.'7863'
+    $p7871 = [bool]$Snapshot.ports.'7871'
+    $pLine = '  ports           6185={0}  7863={1}  7871={2}' -f `
+        $(if ($p6185) { 'up' } else { 'DOWN' }), `
+        $(if ($p7863) { 'up' } else { 'DOWN' }), `
+        $(if ($p7871) { 'up' } else { 'DOWN' })
+    if ($p6185 -and $p7863 -and $p7871) { Write-Host $pLine -ForegroundColor Green }
+    else { Write-Host $pLine -ForegroundColor Yellow }
+    $linkTxt = 'not connected'
+    if ([int]$Snapshot.link -gt 0) { $linkTxt = 'connected' }
+    $loginTxt = $linkTxt
+    if ($Snapshot.qr) { $loginTxt = 'QR waiting for scan (fresh ' + $Snapshot.qr + ')' }
+    $linkLine = '  napcat->astrbot ' + $loginTxt
+    if ($linkTxt -eq 'connected') { Write-Host $linkLine -ForegroundColor Green }
+    elseif ($Snapshot.qr) { Write-Host $linkLine -ForegroundColor Yellow }
+    else { Write-Host $linkLine -ForegroundColor DarkYellow }
     Write-Host ('  desktop         ' + $Snapshot.session) -ForegroundColor DarkGray
     Write-Host ''
 }
