@@ -47,14 +47,19 @@ jobs:
       - name: PowerShell 语法
         shell: pwsh
         run: |
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path tools/deploy-stack.ps1), [ref]$null, [ref]$errors) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Host $_ }
-            exit 1
+          $failed = $false
+          foreach ($script in (Get-ChildItem tools/*.ps1)) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              Write-Host "在 $($script.Name) 里发现语法错误："
+              $errors | ForEach-Object { Write-Host $_ }
+              $failed = $true
+            }
           }
-          Write-Host 'PowerShell 解析通过'
+          if ($failed) { exit 1 }
+          Write-Host 'PowerShell 解析通过（tools/*.ps1 全部）'
 
       - name: Issue 表单 YAML 可解析
         run: |
