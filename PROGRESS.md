@@ -1812,3 +1812,41 @@ data_v4.db。覆盖后清 `__pycache__`，重启 `QQBotStack-astrbot`。
 - 第一条真实 @ 回复的路由日志还没看到（群里一直没人点它）。
 
 ## 状态: 已完成
+
+# 2026-11-01 第 N+3 轮：建仓后首次独立代码审查与修复
+
+## 任务
+- 全仓代码审查（host/plugin 5 插件 + tools 10 脚本 + CI + 文档一致性），只修真问题：
+  正确性 / 健壮性 / 脱敏 / 文档漂移；纯风格不动；不部署、不 push。
+
+## 改动清单（按 commit 顺序）
+- [x] sync-auths.ps1：`-replace '\\'` 只匹配成对反斜杠 → deploy_root 归一空转；
+      改 `.Replace('\','/')`；补 `ssh_port`（ssh `-p` / scp `-P`）。
+- [x] verify-stack.py：stack.conf 端口坏值（非数字 / 超范围）由 traceback 改为
+      一行报错（`to_port()`，退出码 2、条目 T8）；ssh_port 同样校验。
+- [x] guard main.py：DEFAULTS 六处与文档/示例对齐——random_cooldown_sec 300→180、
+      followup_window_sec 45→300、followup_max_chain 3→10、media_pending_sec 180→300、
+      interest_decay_per_min 1.5→1.0、scope_close_window True→False；
+      `_load_pending_media` 改 with 打开（句柄泄漏）。
+- [x] people main.py：`@register` 版本 1.1.0 → 1.1.1，对齐 metadata.yaml。
+- [x] deploy-stack.ps1：api_key 改用 RNGCryptoServiceProvider（Get-Random 可预测）；
+      `schtasks /tr` 路径加引号（含空格路径不再被拆）。
+- [x] ci.yml：PowerShell 语法检查从只查 deploy-stack.ps1 扩到 tools/*.ps1 全部。
+- [x] 脱敏：清掉残留兄弟应用名（TOOLS/SECRETS/DESIGN-DEPLOY/stack.conf.example/
+      check-secrets 注释）；stack.conf.example 悬空的 qq 注释与字段归位。
+- [x] 文档一致性：ARCHITECTURE（随机插话 25%→6%、出圈不直接关窗、世界书视图指向
+      qqbotstack_worldbook editor、§6 WebUI 例外口径）、TOOLS（示例 random_prob 0.06、
+      guard 视图行）、DESIGN-FOLLOWUP（scope_close_window 默认 false）、
+      README（WebUI 回环表述补 6185 例外）。
+- [x] PITFALLS：补 P92（反斜杠归一坑）、P93（端口坏值坑）。
+
+## 验证
+- `python -m py_compile` 全部通过；guard DEFAULTS 用 AST 抽取与
+  config.example.json 逐键比对一致。
+- verify-stack 四条坏值路径（坏端口 / 超范围 / 占位符 / 缺文件）临时 conf 干跑，
+  全部一行报错、退出码 2，不触网。
+- PowerShell 三个 ps1 Parser 校验通过；deploy keygen 表达式干跑 48 位 hex；
+  deploy_root 归一四种写法干跑正确。
+- `check-docs.py` 21 篇通过；`check-secrets.py --all` 无发现。
+
+## 状态: 已完成
