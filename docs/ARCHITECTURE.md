@@ -327,6 +327,17 @@ NapCat 由 `runtime\napcat\run-napcat.cmd` 拉起：脚本自己找最新的 `Na
 不必再远程登录、钻进 `runtime\napcat\onekey\NapCat.*.Shell` 双击 `napcat.bat`
 （[TOOLS.md](TOOLS.md) §1.4）。
 
+**2026-11-01 起四个任务的动作统一为
+`wscript.exe //B //Nologo hidden-run.vbs <run-*.cmd>`**（vbs 在 `QQBotStack\` 根）：
+wscript 是 GUI 子系统、从不分配控制台，`Run(..., 0, True)` 隐藏拉起脚本——桌面上
+不再有常驻 cmd 窗口（三服务本就是 SYSTEM 会话 0 没有窗口，NapCat 的那个控制台
+是唯一可见的）。`True` 是刻意的：wscript 常驻作为任务实例根，`schtasks /end`
+仍连树杀掉整个服务；若用 `False`，wscript 秒退、服务脱离任务树，`/end` 变空操作
+（实测踩过）。日志照旧落在各 `run-*.cmd` 重定向的 `*.log` 文件里，窗口不承载
+独有信息。`run-napcat.cmd` 给 `NapCatWinBootMain.exe` 传 quickLogin 账号参数：
+登录态有效时开机免扫码；过期时二维码刷新存于
+`napcat\onekey\NapCat.*.Shell\versions\<v>\resources\app\napcat\cache\qrcode.png`。
+
 > 剩下的可用性缺口只有一个：**NapCat 依赖桌面会话**。目标机重启后没人登录，
 > QQ 就起不来。要彻底免登录，需要开「自动登录」，或把 QQ/NapCat 换成服务化方案
 > （见 [DESIGN-DEPLOY.md](DESIGN-DEPLOY.md) §八.1 的选项 B）。
