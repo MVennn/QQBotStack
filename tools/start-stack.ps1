@@ -295,8 +295,12 @@ if (`$sel -eq 'all' -or `$sel -eq 'astrbot') {
 # --- 2) make sure the NapCat wrapper and its task exist (idempotent) ---
 $WrapperText = @'
 @echo off
+chcp 65001 >nul
 rem Start NapCat inside the logged-on desktop session.
 rem Called by scheduled task QQBotStack-napcat; safe to run when already up.
+rem Switch account: edit quicklogin.txt (one QQ number) and restart the task.
+rem A fresh login for a new number also needs onebot11_<number>.json next to
+rem the existing one (copy it: it carries the reverse-WS client config).
 setlocal
 set "SCRIPTDIR=%~dp0"
 set "SHELLDIR="
@@ -306,9 +310,11 @@ if not exist "%SCRIPTDIR%onekey" goto no_onekey
 if not defined SHELLDIR goto no_shell
 if not exist "%SHELLDIR%\NapCatWinBootMain.exe" goto no_boot
 
-tasklist /fi "imagename eq NapCatWinBootMain.exe" 2>nul | find /i "NapCatWinBootMain.exe" >nul
+rem Guard on QQ.exe, not NapCatWinBootMain.exe: the boot main exits right
+rem after QQ is up, so re-running this script must not spawn a second QQ.
+tasklist /fi "imagename eq QQ.exe" 2>nul | find /i "QQ.exe" >nul
 if not errorlevel 1 (
-    echo [run-napcat] already running, nothing to do
+    echo [run-napcat] QQ already running, nothing to do
     if /i "%~1"=="/check" echo [run-napcat] shell=%SHELLDIR%
     exit /b 0
 )
@@ -320,6 +326,14 @@ if /i "%~1"=="/check" (
 
 cd /d "%SHELLDIR%"
 echo [run-napcat] starting NapCat from %SHELLDIR%
+set "QL="
+if exist "%SCRIPTDIR%quicklogin.txt" set /p QL=<"%SCRIPTDIR%quicklogin.txt"
+if not defined QL goto no_ql
+echo [run-napcat] quick login account: %QL%
+"NapCatWinBootMain.exe" %QL% >> "%SCRIPTDIR%napcat.stdout.log" 2>> "%SCRIPTDIR%napcat.stderr.log"
+exit /b %ERRORLEVEL%
+:no_ql
+echo [run-napcat] no quicklogin.txt, starting without quick login
 "NapCatWinBootMain.exe" >> "%SCRIPTDIR%napcat.stdout.log" 2>> "%SCRIPTDIR%napcat.stderr.log"
 exit /b %ERRORLEVEL%
 
@@ -348,6 +362,17 @@ $scpCode = $LASTEXITCODE
 Remove-Item -LiteralPath $LocalWrapper -Force -ErrorAction SilentlyContinue
 if ($scpCode -ne 0) { Fail ('could not upload the NapCat wrapper (scp exit ' + $scpCode + ')') }
 
+# hidden-run.vbs ships alongside: the napcat task action must use the wscript
+# hidden shell, otherwise a rebuilt task gets a visible console window back.
+$RemoteVbs = 'C:/Windows/Temp/qqb-hidden-run.vbs'
+$LocalVbs = Join-Path $env:TEMP ('qqb-hidden-run-' + [Guid]::NewGuid().ToString('N') + '.vbs')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'hidden-run.vbs') -Destination $LocalVbs -Force
+$scpVbs = $ScpBase + @($LocalVbs, ($Target + ':' + $RemoteVbs))
+& scp @scpVbs | Out-Null
+$scpVbsCode = $LASTEXITCODE
+Remove-Item -LiteralPath $LocalVbs -Force -ErrorAction SilentlyContinue
+if ($scpVbsCode -ne 0) { Fail ('could not upload hidden-run.vbs (scp exit ' + $scpVbsCode + ')') }
+
 $EnsureScript = @"
 `$ErrorActionPreference = 'Stop'
 `$ProgressPreference = 'SilentlyContinue'
@@ -360,10 +385,18 @@ if (-not (Test-Path -LiteralPath `$src)) { Write-Output 'ERR:upload missing'; ex
 Copy-Item -LiteralPath `$src -Destination `$wrapper -Force
 Remove-Item -LiteralPath `$src -Force
 Write-Output ('wrapper: ' + `$wrapper)
+`$vbs = Join-Path `$root 'hidden-run.vbs'
+`$vbsSrc = '$($RemoteVbs -replace '/', '\')'
+if (Test-Path -LiteralPath `$vbsSrc) {
+    Copy-Item -LiteralPath `$vbsSrc -Destination `$vbs -Force
+    Remove-Item -LiteralPath `$vbsSrc -Force
+    Write-Output ('hidden-run: ' + `$vbs)
+}
 `$me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 `$t = @(Get-ScheduledTask -TaskName 'QQBotStack-napcat' -ErrorAction SilentlyContinue)[0]
 if (-not `$t) {
-    `$action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument ('/c "' + `$wrapper + '"') -WorkingDirectory `$napDir
+    # wscript hidden shell: no console window, and schtasks /end still kills the tree
+    `$action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('//B //Nologo "' + `$vbs + '" "' + `$wrapper + '"') -WorkingDirectory `$napDir
     `$trigger = New-ScheduledTaskTrigger -AtLogOn -User `$me
     `$trigger.Delay = 'PT20S'
     `$principal = New-ScheduledTaskPrincipal -UserId `$me -LogonType Interactive -RunLevel Highest
@@ -402,7 +435,7 @@ foreach ($n in @('QQBotStack-wb2api', 'QQBotStack-zgate', 'QQBotStack-astrbot'))
         Write-Output ('started: ' + $n)
     }
 }
-if (-not @(Get-Process NapCatWinBootMain -ErrorAction SilentlyContinue)[0]) {
+if (-not @(Get-Process QQ -ErrorAction SilentlyContinue)[0]) {
     if (-not @(Get-Process explorer -ErrorAction SilentlyContinue)[0]) {
         Write-Output 'napcat: no desktop session on host, cannot start it (log in on the host first)'
     } else {
