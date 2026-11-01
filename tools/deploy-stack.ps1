@@ -104,7 +104,13 @@ function Invoke-GatewayStage {
     }
     else {
         if ($PSCmdlet.ShouldProcess($cfgPath, 'Generate config.json')) {
-            $key = -join ((1..48) | ForEach-Object { '{0:x}' -f (Get-Random -Minimum 0 -Maximum 16) })
+            # api_key must not come from Get-Random (predictable PRNG); use the
+            # crypto RNG. 24 bytes -> the same 48 hex chars as before.
+            $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+            $rngBytes = New-Object byte[] 24
+            $rng.GetBytes($rngBytes)
+            $rng.Dispose()
+            $key = ([System.BitConverter]::ToString($rngBytes)).Replace('-', '').ToLowerInvariant()
             $cfg = [ordered]@{
                 listen     = '127.0.0.1:7863'
                 api_key    = $key
@@ -142,7 +148,9 @@ function Invoke-GatewayStage {
 
     $taskName = 'QQBotStack-wb2api'
     if ($PSCmdlet.ShouldProcess($taskName, 'Register and start scheduled task')) {
-        $null = & schtasks.exe /create /tn $taskName /tr $cmdPath /sc onstart /ru SYSTEM /rl HIGHEST /f 2>&1
+        # Quote /tr: an unquoted path with spaces is split by schtasks into
+        # command + argument, and the task then fails to start.
+        $null = & schtasks.exe /create /tn $taskName /tr ('"' + $cmdPath + '"') /sc onstart /ru SYSTEM /rl HIGHEST /f 2>&1
         if ($LASTEXITCODE -ne 0) { Fail "schtasks /create failed with exit code $LASTEXITCODE" }
         $null = & schtasks.exe /end /tn $taskName 2>&1
         $null = & schtasks.exe /run /tn $taskName 2>&1
