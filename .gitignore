@@ -21,6 +21,9 @@ host/plugin/*/worldbook.json
 # 反问后的待答意图（运行时状态，含发送者 ID），不入库
 host/plugin/*/pending_media.json
 
+# 接话心动值快照（运行时状态，含群号），不入库
+host/plugin/*/interest.json
+
 # --- 主机与账号配置：真值不入库（样例见 stack.conf.example，字段见 docs/SECRETS.md）---
 host/stack.conf
 
