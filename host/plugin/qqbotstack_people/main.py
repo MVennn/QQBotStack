@@ -218,7 +218,7 @@ def _load_config(path: Path) -> dict:
     PLUGIN_NAME,
     "M.Venn",
     "人物记忆：按 QQ 记称呼、历史与亲密度；后台用模型把聊天整理成要点表格",
-    "1.1.0",
+    "1.1.1",
 )
 class PeoplePlugin(Star):
     def __init__(self, context: Context):
