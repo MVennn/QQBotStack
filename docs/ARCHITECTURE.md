@@ -335,8 +335,18 @@ wscript 是 GUI 子系统、从不分配控制台，`Run(..., 0, True)` 隐藏�
 仍连树杀掉整个服务；若用 `False`，wscript 秒退、服务脱离任务树，`/end` 变空操作
 （实测踩过）。日志照旧落在各 `run-*.cmd` 重定向的 `*.log` 文件里，窗口不承载
 独有信息。`run-napcat.cmd` 给 `NapCatWinBootMain.exe` 传 quickLogin 账号参数：
-登录态有效时开机免扫码；过期时二维码刷新存于
-`napcat\onekey\NapCat.*.Shell\versions\<v>\resources\app\napcat\cache\qrcode.png`。
+**账号写在 `runtime\napcat\quicklogin.txt`（一行一个号）**，换号=改这个文件+重启
+`QQBotStack-napcat` 任务；文件不存在则不带参数启动（出码登录）。登录态有效时
+开机免扫码；过期时二维码刷新存于
+`napcat\onekey\NapCat.*.Shell\versions\<v>\resources\app\napcat\cache\qrcode.png`
+（控制台已隐藏，扫码看这个文件）。
+
+**切号三步**：①把新号写进 `quicklogin.txt`；②若该号从未在本机登录过，先把现有
+`onebot11_<旧号>.json` 复制一份改名 `onebot11_<新号>.json`——反连 6199 的网络配置
+在里面，新号没有这份文件时即使登录成功 AstrBot 也收不到事件；③重启 napcat 任务，
+首次扫码登录新号。切回旧号=把旧号写回 `quicklogin.txt` 重启即可（旧 session 仍在
+本机）。数据口径：人群档案/亲密度按 QQ 号存于插件数据，换号后 bot 在群里是
+「新人」；群白名单按群号，不受换号影响。
 
 > 剩下的可用性缺口只有一个：**NapCat 依赖桌面会话**。目标机重启后没人登录，
 > QQ 就起不来。要彻底免登录，需要开「自动登录」，或把 QQ/NapCat 换成服务化方案
