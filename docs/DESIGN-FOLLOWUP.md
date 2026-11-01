@@ -429,7 +429,7 @@ await self.context.send_message(event.unified_msg_origin, MessageChain(chain))
 | `scope_guard_enabled` | `true` | 出圈话题 / 话题漂移闸门总开关 |
 | `scope_loss` | `12` | 出圈 / 漂移扣减 |
 | `scope_min_chars` | `6` | 少于这个字数不做漂移判定，避免误杀短接话 |
-| `scope_close_window` | `true` | 出圈 / 漂移时直接关窗，让群里自己聊 |
+| `scope_close_window` | `false` | 出圈 / 漂移只扣心动值、不直接关窗（guard 1.6.28 起；设计初值为 true） |
 | `image_reply_cooldown_sec` | `30` | 纯图接话冷却 |
 | `media_pending_enabled` | `true` | 反问后的待答意图总开关 |
 | `media_pending_sec` | `300` | 待答意图有效期（秒）；歌名/视频名晚回也能接住 |

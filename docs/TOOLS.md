@@ -52,8 +52,8 @@ powershell -ExecutionPolicy Bypass -File tools\sync-auths.ps1
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `-Conf` | `<repo>\host\stack.conf` | 从这里读目标机的 host / user |
-| `-Source` | ZcodeAIModels 的 `gateways/upstream/workbuddy/auths` | 账号文件来源 |
+| `-Conf` | `<repo>\host\stack.conf` | 从这里读目标机的 host / user / ssh_port |
+| `-Source` | stack.conf 的 `auths_source` | 本地 auths 目录来源（此参数可覆盖） |
 | `-StateFile` | `%LOCALAPPDATA%\QQBotStack\authsync.state` | 记录最后一次成功同步的日期 |
 
 **幂等**：当天已同步过就直接退出（退出码 0），不会重复推送。
@@ -103,13 +103,13 @@ AstrBot 插件，决定机器人在群里什么时候开口。部署位置：
 | `main.py` | 插件本体：放行 / `stop_event()` 的判定；分享与点歌的 LLM Tool；B站兜底 |
 | `config.json` | **实例配置，不入库**（含群号与关键词）；模板见 `config.example.json` |
 | `worldbook.json` | **世界书产物，不入库**；当前中期版由 `.work/build_midworldbook.py` 从 `.work/世界书_中期.md` 编排，底层仍调用 `tools/build-worldbook.py` |
-| `views/worldbook/index.html` | WebUI 浏览页（数据内联）：搜索条目、看关键词与正文 |
+| `views/status/index.html` | WebUI 状态页：接话窗口、断路器、插件委托的运行时快照 |
 
 ```json
 {
   "allowed_group": "<GROUP-ID>",
   "keywords": ["<KEYWORD-1>", "<KEYWORD-2>"],
-  "random_prob": 0.25,
+  "random_prob": 0.06,
   "random_cooldown_sec": 180,
   "wake_prefix": "/",
   "routing_enabled": true,

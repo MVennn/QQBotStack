@@ -57,7 +57,7 @@ NapCat ──OneBot 11 反向 WebSocket（NapCat 主动连出）──▶ AstrBo
 | 私聊 | 一律不回复 | 插件 `guard_private()` 直接 `stop_event()`（`private_reply_enabled=false`） |
 | 指定群 · 被 @ 或引用机器人 | 回复 | 插件置位 `is_at_or_wake_command` |
 | 指定群 · 文本**包含**关键词 | 回复 | 插件（`wake_prefix` 只能做前缀，见 PITFALLS P19） |
-| 指定群 · 普通闲聊 | **25%** 概率随机插话，3 分钟冷却（仅纯文本） | 插件 |
+| 指定群 · 普通闲聊 | **6%** 概率随机插话（`random_prob`），3 分钟冷却（仅纯文本） | 插件 |
 | 指定群 · 纯图片 / 空文本 | 不随机插话（被 @ 或含关键词时仍会回） | 插件 |
 | 指定群 · 分享链接 / QQ 小程序卡片 | 解析并发送媒体/卡片，再由人格接一两句 | `parse_share_link` LLM Tool |
 | 指定群 · 想听歌 / 聊歌 | 有明确歌名就发 QQ 音乐卡片，否则自然接话/反问 | 点歌插件 `play_song_by_name` Tool |
@@ -168,9 +168,10 @@ guard 另有按模型独立计数的断路器：主模型和 HY3 分别统计 5x
 `关系矩阵` 的 keys，否则一句「梵铭」会给关系矩阵算两票，把人物页顶掉。
 人物页的 `铭` 条目保留单字 key，靠它接住只打「铭」的问句。
 
-世界书可以在 WebUI 里直接浏览：**插件 → qqbotstack_guard → 世界书视图**。
-页面是插件自带的 `views/worldbook/index.html`（数据内联，纯静态），支持按条目名 /
-关键词 / 正文搜索，常驻条目有橙色标记。生成时加 `--view <插件目录>` 一起产出。
+世界书可以在 WebUI 里直接浏览与编辑：**插件 → qqbotstack_worldbook**，页面是
+qqbotstack_worldbook 自带的 `views/editor/index.html`，数据走该插件注册的 Web API
+（增删改、匹配预览、重载）。`tools/build-worldbook.py --view <插件目录>` 仍可额外
+生成一份数据内联的静态浏览页（`views/worldbook/index.html`），常驻条目有橙色标记。
 
 **`worldbook.json` 不入库**（含作品正文），仓库里只有生成器；阶段源文件与产物都在
 `.work/`。改了设定集或推进阶段就重新生成一次，再拷到实例的
@@ -217,7 +218,8 @@ guard 唤醒 LLM，由上游 `astrbot_plugin_music` 的 `play_song_by_name` 工�
 每次回复 -2，普通无关消息 -8）。低于 20 时窗口关闭，只接 @ / 引用 / 叫他名字；
 高于 60 时只把门槛压低（问句 0.05 / 陈述 0.1），仍然必须和当前话题沾边，
 不再无条件接普通陈述。出圈话题（AI / 游戏 / 技术 / 娱乐圈）或和最初话题、
-上一句都没有实际关系时，扣 12 分并直接关窗，让群里自己聊。
+上一句都没有实际关系时，扣 12 分（`scope_close_window=false`，只扣分不直接关窗，
+窗口由心动值与判定器收放）。
 直接问你的那条永远优先，不会被更相关的第二个人顶掉。图片/表情包在直接点名或心动值 ≥50 时放行给 LLM，
 AstrBot 自动切 HY3/HY4；纯图不再被随机插话分支 `stop_event()` 吞掉。
 
@@ -331,7 +333,8 @@ NapCat 由 `runtime\napcat\run-napcat.cmd` 拉起：脚本自己找最新的 `Na
 
 ## 6. 不会做什么
 
-- ❌ 不向局域网暴露任何 WebUI
+- ❌ 不向局域网暴露任何 WebUI（唯一例外是 §3 的 AstrBot 面板 6185：
+  防火墙只放行局域网网段，且前提是面板密码已改掉初始值）
 - ❌ 不做端口转发、不碰路由器 NAT
 - ❌ 不修改上游组件代码（AstrBot / NapCat / wb2api）
 - ❌ 不在仓库里保存 token、账号或 QQ 号
