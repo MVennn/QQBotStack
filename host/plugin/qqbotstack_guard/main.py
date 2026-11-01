@@ -2538,11 +2538,16 @@ class QQBotStackGuard(Star):
             < self.followup_judge_cooldown_sec
         ):
             return False
+        old_wakes = self._judge_wakes.get(group_id)
         wakes = [
             ts
-            for ts in self._judge_wakes.get(group_id, [])
+            for ts in old_wakes or []
             if now - ts < 900.0
         ]
+        if old_wakes is not None and len(wakes) != len(old_wakes):
+            # 过期时间戳回写：判定本来就只看 900 秒内的记录，
+            # 不回写的话列表会随进程寿命无界增长、每条消息全量重扫。
+            self._judge_wakes[group_id] = wakes
         if len(wakes) >= 3:
             return False
         self._judge_last_at[group_id] = now
