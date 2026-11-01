@@ -30,6 +30,7 @@
 """
 
 import asyncio
+import functools
 import json
 import os
 import random
@@ -478,7 +479,13 @@ TOPIC_STOP_BIGRAMS = {
     "你先", "先说", "说清", "清楚", "具体", "哪个", "哪家", "哪位",
 }
 
+@functools.lru_cache(maxsize=1024)
 def _normalize_text(text: str) -> str:
+    """归一化文本（strip/lower/去空白与标点）。
+
+    纯函数且在复读比对里被逐对重复调用：缓存一份，
+    上下文里同一条旧回复整轮只归一一次。返回值是缓存对象，调用方不得修改。
+    """
     text = (text or "").strip().lower()
     return re.sub(r"[\s\W_]+", "", text)
 
@@ -503,8 +510,13 @@ def _bigram_overlap(a: str, b: str) -> float:
     return len(ga & gb) / min(len(ga), len(gb))
 
 
+@functools.lru_cache(maxsize=1024)
 def _content_bigrams(text: str) -> set[str]:
-    """Bigrams with common conversational filler removed."""
+    """Bigrams with common conversational filler removed.
+
+    纯函数且在复读比对里逐对重复调用：按原文缓存一份。
+    返回值是缓存对象，调用方不得修改（现有调用方只做 & 运算或 set() 拷贝）。
+    """
     na = _normalize_text(text)
     return {
         na[i : i + 2]
@@ -553,6 +565,17 @@ def _assistant_texts(contexts) -> list[str]:
     return out
 
 
+def _ratio_ceiling(len_a: int, len_b: int) -> float:
+    """SequenceMatcher.ratio() 的数学上界：2*min/(la+lb)。
+
+    ratio = 2M/(la+lb)，而 M（匹配字符数）不可能超过较短边的长度；
+    上界低于阈值时可以直接跳过 O(n²) 的真比对，结果等价。
+    """
+    if not len_a or not len_b:
+        return 0.0
+    return 2.0 * min(len_a, len_b) / (len_a + len_b)
+
+
 def _repeat_like(a: str, b: str) -> bool:
     """两条回复是否像同一个模板（用于折叠上下文里的旧复读）。
 
@@ -564,8 +587,11 @@ def _repeat_like(a: str, b: str) -> bool:
     if len(na) < 4 or len(nb) < 4:
         return False
     short = max(len(na), len(nb)) <= 40
-    if _text_similarity(a, b) >= (0.5 if short else 0.85):
-        return True
+    threshold = 0.5 if short else 0.85
+    # 长度差大到 ratio 上界都够不着阈值时，不必真跑 SequenceMatcher。
+    if _ratio_ceiling(len(na), len(nb)) >= threshold:
+        if _text_similarity(a, b) >= threshold:
+            return True
     return short and _content_bigram_overlap(a, b) >= 0.5
 
 
@@ -578,8 +604,10 @@ def _repeat_like_strict(a: str, b: str) -> bool:
     if len(na) < 6 or len(nb) < 6:
         return False
     short = max(len(na), len(nb)) <= 30
-    if _text_similarity(a, b) >= (0.6 if short else 0.9):
-        return True
+    threshold = 0.6 if short else 0.9
+    if _ratio_ceiling(len(na), len(nb)) >= threshold:
+        if _text_similarity(a, b) >= threshold:
+            return True
     return short and _content_bigram_overlap(a, b) >= 0.55
 
 
@@ -1091,15 +1119,21 @@ COMPLEX_HINTS = (
     "封号", "订阅", "部署", "显卡",
 )
 
+# ASCII 提示词的单词边界匹配（避免 ai 命中 said、api 命中 rapid）。
+# 每次 LLM 请求都要跑一遍，正则在模块加载时编译好，不再靠 re 内部缓存。
+_COMPLEX_ASCII_RE = {
+    hint: re.compile(r"(?<![a-z0-9])" + re.escape(hint) + r"(?![a-z0-9])")
+    for hint in COMPLEX_HINTS
+    if hint.isascii()
+}
+
 
 def _has_complex_hint(text: str) -> bool:
     """ASCII 提示词按单词边界匹配（避免 ai 命中 said、api 命中 rapid）。"""
     low = (text or "").lower()
     for hint in COMPLEX_HINTS:
         if hint.isascii():
-            if re.search(
-                r"(?<![a-z0-9])" + re.escape(hint) + r"(?![a-z0-9])", low
-            ):
+            if _COMPLEX_ASCII_RE[hint].search(low):
                 return True
         elif hint in low:
             return True
@@ -3960,7 +3994,11 @@ class QQBotStackGuard(Star):
             return 0
 
         drop = set()
-        protected_grams, protected_chars = _protected_tokens(self.worldbook)
+        # 世界书载入后不变：保护词惰性算一次就够（测试用裸 owner 时逐次重算）。
+        protected = getattr(self, "_protected_cache", None)
+        if protected is None:
+            protected = self._protected_cache = _protected_tokens(self.worldbook)
+        protected_grams, protected_chars = protected
         # 1) 近似重复（提到人物名的回复不动：名字本身就会让句子长得很像）
         # 最新一条机器人回复永远保留：删掉它会让模型以为自己没说过，
         # 下一轮再把同一句原样说出来（2026-10-28 15:06→15:10 实测）。
