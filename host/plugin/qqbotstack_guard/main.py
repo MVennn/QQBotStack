@@ -960,7 +960,9 @@ DEFAULTS = {
     "allowed_group": "",
     "keywords": [],
     "random_prob": 0.0,
-    "random_cooldown_sec": 300,
+    # 下面这些缺省值与 config.example.json / docs 保持一致；
+    # 实际运行以实例 config.json 为准。
+    "random_cooldown_sec": 180,
     "wake_prefix": "/",
     "routing_enabled": True,
     "model_simple": "Beam",
@@ -1026,7 +1028,7 @@ DEFAULTS = {
     "image_judge_only": True,
     "share_reply_cooldown_sec": 60,
     "followup_enabled": True,
-    "followup_window_sec": 45,
+    "followup_window_sec": 300,
     "followup_debounce_sec": 6.0,
     "followup_at_debounce_sec": 1.5,
     "followup_jitter_sec": 1.5,
@@ -1038,7 +1040,7 @@ DEFAULTS = {
     "followup_quote_main": False,
     "followup_private": False,
     "followup_ignore_ids": [],
-    "followup_max_chain": 3,
+    "followup_max_chain": 10,
     # 续聊判定器：窗口要关/消息要被忽略时，用小模型判断对方是否还在跟你说、
     # 还想不想聊。是就把这条消息当接话收进来，不再靠启发式硬掐。
     "followup_judge_enabled": True,
@@ -1046,7 +1048,7 @@ DEFAULTS = {
     "followup_judge_cooldown_sec": 90.0,
     "interest_enabled": True,
     "interest_initial": 70.0,
-    "interest_decay_per_min": 1.5,
+    "interest_decay_per_min": 1.0,
     "interest_direct_gain": 25.0,
     "interest_related_gain": 6.0,
     "interest_reply_cost": 2.0,
@@ -1057,11 +1059,12 @@ DEFAULTS = {
     "scope_guard_enabled": True,
     "scope_loss": 12.0,
     "scope_min_chars": 6,
-    "scope_close_window": True,
+    # 跑题只扣心动值、不直接关窗（模块 docstring 与 CHANGELOG 的既定决策）。
+    "scope_close_window": False,
     "image_reply_cooldown_sec": 30.0,
     "image_reply_prob": 0.5,
     "media_pending_enabled": True,
-    "media_pending_sec": 180,
+    "media_pending_sec": 300,
     "idle_reply_enabled": True,
     "idle_reply_prob": 0.10,
     "idle_cooldown_sec": 180.0,
@@ -2983,7 +2986,8 @@ class QQBotStackGuard(Star):
         if not path or not os.path.isfile(path):
             return {}
         try:
-            data = json.load(open(path, encoding="utf-8"))
+            with open(path, encoding="utf-8") as handle:
+                data = json.load(handle)
         except (OSError, ValueError) as exc:
             logger.warning(f"[media-pending] load failed: {exc}")
             return {}
