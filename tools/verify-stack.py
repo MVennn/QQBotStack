@@ -174,21 +174,39 @@ def main() -> int:
     args = parser.parse_args()
 
     need_conf = not (args.host and args.user and args.key)
+
+    def to_port(key: str, raw) -> int:
+        """端口配置必须是 1-65535 的纯数字，坏值给一行人话，不甩 traceback。"""
+        text = str(raw or "").strip()
+        try:
+            port = int(text)
+        except ValueError:
+            raise ConfError(
+                "%s 里的 %s 不是数字：%s —— 端口必须是纯数字（如 7863）"
+                % (args.conf, key, text or "(空)")
+            )
+        if not 1 <= port <= 65535:
+            raise ConfError(
+                "%s 里的 %s 超出 1-65535：%d" % (args.conf, key, port)
+            )
+        return port
+
     try:
         conf = read_conf(args.conf) if (need_conf or os.path.isfile(args.conf)) else {}
+        args.host = args.host or conf.get("host", "")
+        args.user = args.user or conf.get("user", "")
+        args.key = args.key or conf.get("api_key", "")
+        args.ssh_port = to_port(
+            "ssh_port", args.ssh_port or conf.get("ssh_port", DEFAULTS["ssh_port"])
+        )
+        gw_port = to_port("gateway_port", conf.get("gateway_port") or DEFAULTS["gateway_port"])
+        ab_port = to_port("astrbot_port", conf.get("astrbot_port") or DEFAULTS["astrbot_port"])
+        nc_port = to_port("napcat_port", conf.get("napcat_port") or DEFAULTS["napcat_port"])
+        ob_port = to_port("onebot_port", conf.get("onebot_port") or DEFAULTS["onebot_port"])
     except ConfError as exc:
         print("✗ %s" % exc, file=sys.stderr)
         print("  条目：T8", file=sys.stderr)
         return 2
-
-    args.host = args.host or conf.get("host", "")
-    args.user = args.user or conf.get("user", "")
-    args.key = args.key or conf.get("api_key", "")
-    args.ssh_port = args.ssh_port or conf.get("ssh_port", DEFAULTS["ssh_port"])
-    gw_port = int(conf.get("gateway_port") or DEFAULTS["gateway_port"])
-    ab_port = int(conf.get("astrbot_port") or DEFAULTS["astrbot_port"])
-    nc_port = int(conf.get("napcat_port") or DEFAULTS["napcat_port"])
-    ob_port = int(conf.get("onebot_port") or DEFAULTS["onebot_port"])
 
     missing = [name for name, val in
                (("host", args.host), ("user", args.user), ("api_key", args.key))
