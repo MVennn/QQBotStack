@@ -66,6 +66,8 @@ foreach ($line in Get-Content -LiteralPath $Conf) {
 }
 $hostName = $confMap['host']
 $userName = $confMap['user']
+$sshPort = $confMap['ssh_port']
+if ([string]::IsNullOrWhiteSpace($sshPort)) { $sshPort = '22' }
 if ([string]::IsNullOrWhiteSpace($hostName) -or [string]::IsNullOrWhiteSpace($userName)) {
     Write-Log 'fail: host/user missing in stack.conf'
     exit 2
@@ -74,7 +76,11 @@ if ([string]::IsNullOrWhiteSpace($Source)) { $Source = $confMap['auths_source'] 
 $deployRoot = $confMap['deploy_root']
 if ([string]::IsNullOrWhiteSpace($deployRoot)) { Write-Log 'fail: deploy_root missing in stack.conf'; exit 2 }
 if ([string]::IsNullOrWhiteSpace($Source)) { Write-Log 'fail: auths_source missing in stack.conf (use -Source or stack.conf)'; exit 2 }
-$remoteDir = ($deployRoot -replace '\\\\', '/').TrimEnd('/') + '/runtime/workbuddy/auths'
+# Normalize the deploy root to forward slashes with plain string Replace:
+# -replace '\\\\' only matches PAIRS of backslashes (regex escaping), so a normal
+# Windows root like C:\QQBotStack was left untouched and a trailing '\' survived
+# the TrimEnd('/'), producing ...\/runtime/... targets.
+$remoteDir = ($deployRoot.Replace('\', '/')).TrimEnd('/') + '/runtime/workbuddy/auths'
 $target = $userName + '@' + $hostName + ':' + $remoteDir + '/'
 
 if (-not (Test-Path -LiteralPath $Source)) { Write-Log "fail: source not found: $Source"; exit 1 }
@@ -82,6 +88,7 @@ $files = @(Get-ChildItem -LiteralPath $Source -Filter '*.json' -File)
 if ($files.Count -eq 0) { Write-Log 'fail: no auth files to push'; exit 1 }
 
 $scpArgs = @('-q', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=accept-new')
+if ($sshPort -ne '22') { $scpArgs += @('-P', $sshPort) }
 $scpArgs += $files.FullName
 $scpArgs += $target
 & scp @scpArgs
@@ -92,6 +99,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Log ("copied " + $files.Count + " auth file(s)")
 
 $sshOpts = @('-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15')
+if ($sshPort -ne '22') { $sshOpts += @('-p', $sshPort) }
 & ssh @sshOpts ($userName + '@' + $hostName) 'schtasks /end /tn QQBotStack-wb2api'
 Start-Sleep -Seconds 2
 & ssh @sshOpts ($userName + '@' + $hostName) 'schtasks /run /tn QQBotStack-wb2api'
