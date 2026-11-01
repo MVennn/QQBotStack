@@ -1846,3 +1846,35 @@ sh.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""...\sync-auths
 **验证**：同一段真实上下文（15:06/15:10/15:15）离线重放，
 v23+Beam 三条都在追问；v24+DeepSeek 三条是正常接话；
 工具调用 `play_song_by_name` 两个模型都正常返回 `tool_calls`。
+
+## P92 `-replace '\\'` 只替换成对的反斜杠，deploy_root 归一是空转
+
+**现象**：`sync-auths.ps1` 把 `deploy_root` 归一成正斜杠用的正则是
+`-replace '\\', '/'`——单引号里那 4 个字符是「两个字面反斜杠」的正则，
+`C:\QQBotStack` 这种单反斜杠路径一个都匹配不上，尾部 `\` 也躲过 `.TrimEnd('/')`，
+拼出 `C:\QQBotStack\/runtime/...` 这种混合分隔符的 scp 目标。
+
+**根因**：把「正则转义」和「PS 字符串转义」叠在一起数了两层：
+要匹配一个字面反斜杠，PS 字符串只需写 `'\'`；写 `'\\'` 就是匹配两个。
+
+**怎么避**：
+
+- 归一路径分隔符用纯字符串方法 `.Replace('\', '/')`，不走正则——
+  没有转义层，意图即行为；
+- 拼远端路径后打印或日志一行确认（`Write-Log` 里有 copied 条目，排查时先看它）；
+- 顺手补齐 `ssh_port`：`ssh` 用小写 `-p`、`scp` 用**大写** `-P`，混了会直接参数报错。
+
+## P93 stack.conf 里的端口写错类型，verify-stack 直接甩 traceback
+
+**现象**：`gateway_port=abc`（或 `ssh_port` 抄了个全角数字、端口超范围）时，
+`verify-stack.py` 在 `int(conf.get(...))` 处抛 `ValueError`，用户看到的是一屏
+Python 堆栈而不是哪一行配置写错了；退出码也不是承诺的 2。
+
+**根因**：端口解析假设了「值一定是数字」，而 stack.conf 是手填的——
+缺键有占位符检查兜着，坏值却没人管。
+
+**怎么避**：
+
+- 端口解析统一走 `to_port()`：不是数字、超出 1-65535 都给一行人话
+  （`<conf> 里的 <key> 不是数字：...`），退出码 2、条目 T8；
+- 手填配置文件里的每个数值字段都要过一遍「坏值路径」再交付。
