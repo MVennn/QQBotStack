@@ -1850,3 +1850,77 @@ data_v4.db。覆盖后清 `__pycache__`，重启 `QQBotStack-astrbot`。
 - `check-docs.py` 21 篇通过；`check-secrets.py --all` 无发现。
 
 ## 状态: 已完成
+
+# 2026-11-01 第 N+4 轮：运行时内存/热路径效率审查（零行为变更）
+
+## 任务
+- 5 个插件（host/plugin/*/main.py，重点 guard 4295 行）做运行时内存/热路径效率
+  审查与零行为变更优化。bot 在线上跑：每处优化必须能论证行为等价，不能等价的宁可不改。
+- 不连目标机、不启 AstrBot、不部署、不 push。
+
+## 审查结论（按收益排序）
+- [P1][people] remember()/bump_intimacy()/build_hint() 每条消息/每次回复各自
+  全量读人档 JSON + 解析 + prune：一次接话触发对同一文件重复读盘 3-8 次。
+  → 加「mtime+size 校验 + 写穿 + LRU 上限 64」读缓存，写盘次数与崩溃一致性不变。
+- [P2][guard] _dedup_assistant_context 每次请求对 O(B²) 对重复 _normalize_text
+  （同一文本最多被归一 4 次）+ 对长度悬殊的对硬跑 SequenceMatcher。
+  → _normalize_text/_content_bigrams 加 lru_cache（纯函数），
+    _repeat_like/_repeat_like_strict 加 ratio 上界（2*min/(la+lb)）长度预筛（数学等价）。
+- [P2][guard] _has_complex_hint 每次 LLM 请求对 9 个 ASCII 提示词现拼正则串
+  （靠 re 内缓存兜底）→ 模块级预编译，判定逻辑不变。
+- [P2][guard] _judge_wakes 只增不减：过期时间戳每次被过滤但从不回写，
+  列表随进程寿命无界增长，且每条消息全量重扫。→ 过滤结果回写。
+- [P3][guard] _protected_tokens(self.worldbook) 每请求重算（worldbook 载入后不变）
+  → 惰性缓存一份。
+- [P3][people] _locks / _last_named 无界（每 QQ/每(群,QQ) 一条，永不回收）
+  → 加帽 512，仅在超帽时清扫未持锁/最旧条目；现役单群规模永不触发。
+- [P3][people] _extract_loop 每 180s 全量读所有人档只为发现「没有新消息」
+  → 记录上次检查时的 mtime，未变化直接跳过读盘（等价于原本的空消息早退）。
+
+## 明确不改（NOT-FIXED，均论证过）
+- ensure_takeover() 每条消息重跑：热重载后接管要靠它逐条补上，节流会拉大
+  「parser 抢跑」窗口，属行为变化。
+- _extract_share_url 每消息最多被求值 4 次：纯微秒级，记忆化要往 event.extra
+  塞键，收益不抵审查负担。
+- logger f-string 惰性化：线上日志级别为 INFO，惰性化省不到任何求值；
+  每消息 1-3 行 info 是前几轮刻意校准的观测口径，改了就是行为变化。
+- _ENGLISH_FIXES 88 条正则逐条 sub、strip_style 对全文二次 _clean_style：
+  输出清洗语义敏感，合并/省略都可能改变输出。
+- _open_followup_window 在 on_decorating_result 与 after_message_sent 各调一次
+  （interest reply-cost 因此扣两次）：现状即如此，动它就是改心动值经济。
+- SQLite：插件栈不直接用 SQLite，会话历史归 AstrBot 管，无频繁开关连接问题。
+- 文件句柄：上轮已修 _load_pending_media，本轮全量扫过无泄漏。
+- config/人设/世界书：全部启动时一次读入（guard/people/tools/memechance/worldbook），
+  无每消息读盘。
+
+## 改动清单
+- guard：`_normalize_text`/`_content_bigrams` 加 lru_cache(1024)（纯函数）；
+  `_repeat_like`/`_repeat_like_strict` 加 ratio 上界长度预筛；`COMPLEX_HINTS`
+  ASCII 词模块级预编译；`_protected_tokens` 结果按实例惰性缓存；
+  `_judge_wakes` 过期时间戳回写。
+- people：`_person_cache`（mtime+size 校验、写穿、LRU 上限 64、写失败/外部
+  改动/forget/config 保存时失效）；`_locks`/`_last_named` 超帽 512 才清扫；
+  `_extract_person` 记录「没有新消息」检查时的 mtime，未变化跳过读盘。
+
+## 验证
+- 等价性差分 `.work/test-perf-equiv-20261101.py`（新写，离线）：
+  guard 新旧实现 181 条语料全对全比对（归一/bigram/_repeat_like/
+  _repeat_like_strict/_has_complex_hint）零差异；3 个随机上下文折叠结果
+  与 extras 完全一致；people 新旧实现同一操作序列（remember×3/bump×4/
+  build_hint×2/外部改文件/forget）落盘字节完全一致；缓存命中/淘汰/
+  写失败回退/外部改动失效逐项断言；整理循环 mtime 跳过 = 原空消息早退。
+- 存量测试：`test-repeat-guard.py` GREEN、`test_followup_rules.py` GREEN
+  （构造处补 3 个新缓存属性）、`test_routing_breaker.py` OK、
+  `test_guard_selfcalls.py` OK。
+- `test_followup_flow.py` 在 HEAD 上同样报
+  `await p.guard(...)` async_generator 错误（/忘记我 引入 yield 时就坏了，
+  与本轮无关，不动）。
+- `python -m py_compile` 5 插件全过；`check-secrets.py --all` 无发现；
+  `check-docs.py` 21 篇通过。
+- 基准（合成 38 助手消息上下文，12 次取最优）：上下文折叠 8.0ms → 3.0ms，
+  SequenceMatcher 调用 5239 → 2966；线上 114 条/39k 字上下文按比例收益更大。
+  实测最大人档 8.9KB 解析 0.064ms：每条消息省 1 次人档读盘+解析（remember），
+  每次 LLM 回复省 1 次（build_hint）+ 接话触发省 3-8 次（逐人 bump）；
+  写盘次数不变。整理循环从每 180s 全量读 N 个人档降为只读有新消息的。
+
+## 状态: 已完成
