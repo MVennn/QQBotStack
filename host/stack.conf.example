@@ -28,9 +28,9 @@ onebot_port=6199
 # 网关 api_key（必填；也可用 --key 传，避免写在文件里）
 api_key=<REDACTED-TOKEN>
 
-# bot 的 QQ 号（可选，只用于自检展示，不参与连接）
+# bot 的 QQ 号（可选，只用于自检展示，不参与连接；工具脚本不读它）
+qq=<QQ-ID>
 
 # 账号每日同步（tools/sync-auths.ps1，可选；缺任一键则该脚本拒绝运行）
-auths_source=<工作区>\ZcodeAIModels\gateways\upstream\workbuddy\auths
+auths_source=<工作区>\gateways\upstream\workbuddy\auths
 deploy_root=<DEPLOY-ROOT>
-qq=<QQ-ID>

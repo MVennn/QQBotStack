@@ -55,7 +55,7 @@
 
 ### 2.3 本地 workbuddy2api 数据
 
-来源：`<工作区>\ZcodeAIModels\gateways\upstream\workbuddy`（已构建好 `wb2api.exe`）。
+来源：账号来源工作区里的 `gateways/upstream/workbuddy`（已构建好 `wb2api.exe`）。
 
 | 内容 | 大小/数量 | 说明 | 是否迁移 |
 |---|---|---|---|
