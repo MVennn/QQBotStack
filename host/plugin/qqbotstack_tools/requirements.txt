@@ -1,0 +1,7 @@
+# qqbotstack_tools 插件运行时依赖
+# 装进 AstrBot 实例的 venv：pip install -r requirements.txt
+#
+# yt-dlp  —— B 站分享链接兜底解析（缺失时插件走 OG 兜底，会静默退化）
+# aiohttp —— 插件内异步 HTTP 请求
+yt-dlp>=2024.1
+aiohttp>=3.9

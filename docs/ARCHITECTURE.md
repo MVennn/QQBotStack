@@ -320,6 +320,19 @@ ssh -N -L 6185:127.0.0.1:6185 -L 6099:127.0.0.1:6099 -L 7863:127.0.0.1:7863 <HOS
 | NapCat | 计划任务 `QQBotStack-napcat`（**登录时**触发，也可随时按需跑） | ✅ 依赖 | QQ 是桌面程序，必须落在交互会话里 |
 | auths 同步（操作机） | 计划任务 `QQBotStack-authsync`（每天 04:00，错过登录后补跑；`wscript` 隐藏启动） | ✅ 依赖 | 只在操作机登录后才会推；当天已同步则跳过 |
 
+### 重建 AstrBot / zgate 自启（换机 / 重装时）
+
+wb2api 由 `tools/deploy-stack.ps1` 自动注册（`QQBotStack-wb2api`）。另外两个任务不在
+部署脚本里，需手工建：
+
+```powershell
+# AstrBot：动作是部署根的 run-astrbot.cmd（安装时生成，负责前置 runtime\ffmpeg 的 PATH）
+schtasks /create /tn QQBotStack-astrbot /tr '"<部署根>\run-astrbot.cmd"' /sc onstart /ru SYSTEM /rl HIGHEST /f
+```
+
+zgate 的自启用 ZcodeAIModels 仓自带的 `zgate install` 子命令管理（见该仓
+`docs/MAINTENANCE.md` §8），本仓只依赖任务名 `QQBotStack-zgate`，不要在本仓重造注册脚本。
+
 NapCat 由 `runtime\napcat\run-napcat.cmd` 拉起：脚本自己找最新的 `NapCat.*.Shell`
 目录，已经在跑就直接退出；任务以**交互令牌**运行当前登录账户
 （即 stack.conf 的 `user`），所以 QQ 窗口落在桌面会话里。

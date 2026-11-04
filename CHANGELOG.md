@@ -17,6 +17,15 @@
   `cookie.json`、`id_ecdsa` 这类名字）
 - `tools/make_social_preview.py` 缺 numpy/Pillow 时给出安装提示
 
+### P3 清理（2026-11-04 审查遗留项）
+
+- `tools/deploy-stack.ps1` 的 schtasks 调用按 P30 临时降 `$ErrorActionPreference`
+  （EAP=Stop 下 stderr 会被包成 NativeCommandError，原写法会误中断）
+- 插件运行时依赖入仓：`host/plugin/qqbotstack_tools/requirements.txt`（yt-dlp / aiohttp），
+  缺 yt-dlp 时 B 站解析走 OG 兜底而非崩溃；DESIGN-MEDIA 补安装说明
+- ARCHITECTURE §5 补「重建 AstrBot / zgate 自启」：astrbot 的 schtasks 命令与
+  zgate 由 ZcodeAIModels `zgate install` 管理的口径（此前只写了任务存在，没写怎么建）
+
 ## [0.1.0] — 2026-11-01
 
 面向用户的说明见 [docs/release-notes/0.1.0.md](docs/release-notes/0.1.0.md)。

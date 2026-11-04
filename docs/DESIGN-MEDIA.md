@@ -291,6 +291,11 @@ if parser_plugin and self.takeover_parser:
 > 本次实测走的是插件市场 zip（parser 1.6.1 / music 3.3.1）手动解压到实例
 > `core/data/plugins/`，再用实例 venv `pip install -r requirements.txt`；
 > 与 WebUI 插件市场安装等价。插件配置预写在 `core/data/config/`，AstrBot 启动时直接读取。
+>
+> 本仓维护的「媒体与小功能」插件（`host/plugin/qqbotstack_tools/`）的运行时依赖在同目录
+> `requirements.txt`（`yt-dlp` 用于 B 站兜底解析、`aiohttp` 用于异步请求），部署时同样装进
+> 实例 venv：`pip install -r <插件目录>\requirements.txt`。缺 `yt-dlp` 时插件走 OG 兜底不会崩，
+> 但 B 站解析会静默退化。
 
 > 所有 cookie、群号、QQ 号只留在目标机 `runtime/` 与插件配置里，**不进仓库、不进文档**。
 

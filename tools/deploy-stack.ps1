@@ -150,10 +150,22 @@ function Invoke-GatewayStage {
     if ($PSCmdlet.ShouldProcess($taskName, 'Register and start scheduled task')) {
         # Quote /tr: an unquoted path with spaces is split by schtasks into
         # command + argument, and the task then fails to start.
-        $null = & schtasks.exe /create /tn $taskName /tr ('"' + $cmdPath + '"') /sc onstart /ru SYSTEM /rl HIGHEST /f 2>&1
-        if ($LASTEXITCODE -ne 0) { Fail "schtasks /create failed with exit code $LASTEXITCODE" }
-        $null = & schtasks.exe /end /tn $taskName 2>&1
-        $null = & schtasks.exe /run /tn $taskName 2>&1
+        # P30: with EAP=Stop, native commands writing to stderr become terminating
+        # errors before $LASTEXITCODE can be checked -- lower EAP around the calls.
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $null = & schtasks.exe /create /tn $taskName /tr ('"' + $cmdPath + '"') /sc onstart /ru SYSTEM /rl HIGHEST /f 2>&1
+            $createCode = $LASTEXITCODE
+            if ($createCode -eq 0) {
+                $null = & schtasks.exe /end /tn $taskName 2>&1
+                $null = & schtasks.exe /run /tn $taskName 2>&1
+            }
+        }
+        finally {
+            $ErrorActionPreference = $prevEap
+        }
+        if ($createCode -ne 0) { Fail "schtasks /create failed with exit code $createCode" }
         Write-Ok "Scheduled task $taskName registered and started"
     }
 
