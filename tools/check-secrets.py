@@ -17,9 +17,9 @@ import re
 import subprocess
 import sys
 
-# Windows 控制台默认 GBK，输出 ✓/✗ 会 UnicodeEncodeError；CI 在 Linux 上不受影响。
+# Windows 控制台默认 GBK，输出 [OK]/[FAIL] 会 UnicodeEncodeError；CI 在 Linux 上不受影响。
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(errors="replace")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".gz", ".pyc",
@@ -72,10 +72,10 @@ def tracked_files() -> list[str]:
     try:
         out = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True)
     except FileNotFoundError:
-        print("✗ 找不到 git 命令")
+        print("[FAIL] 找不到 git 命令")
         raise SystemExit(2)
     if out.returncode != 0:
-        print("✗ git ls-files 失败：" + (out.stderr or "").strip())
+        print("[FAIL] git ls-files 失败：" + (out.stderr or "").strip())
         raise SystemExit(2)
     return [x for x in out.stdout.splitlines() if x.strip()]
 
@@ -87,7 +87,7 @@ def untracked_files() -> list[str]:
         ["git", "ls-files", "--others", "--exclude-standard"],
         cwd=ROOT, capture_output=True, text=True)
     if out.returncode != 0:
-        print("✗ git ls-files --others 失败：" + (out.stderr or "").strip())
+        print("[FAIL] git ls-files --others 失败：" + (out.stderr or "").strip())
         raise SystemExit(2)
     return [x for x in out.stdout.splitlines() if x.strip()]
 
@@ -111,7 +111,7 @@ def main() -> int:
     else:
         files = tracked_files()
     if not files:
-        print("✗ 没有可扫描的文件（git ls-files 输出为空，检查是否在仓库内）")
+        print("[FAIL] 没有可扫描的文件（git ls-files 输出为空，检查是否在仓库内）")
         return 2
     bad = []
     for rel in files:
@@ -149,7 +149,7 @@ def main() -> int:
             continue
 
     if bad:
-        print(f"✗ 发现 {len(bad)} 处疑似敏感信息：")
+        print(f"[FAIL] 发现 {len(bad)} 处疑似敏感信息：")
         for rel, lineno, name, text in bad:
             print(f"   {rel}:{lineno}  [{name}]  {text}")
         print()
@@ -157,7 +157,7 @@ def main() -> int:
         print("   位置索引见 docs/SECRETS.md。")
         return 1
 
-    print(f"✓ 已扫描 {len(files)} 个文件，未发现疑似敏感信息")
+    print(f"[OK] 已扫描 {len(files)} 个文件，未发现疑似敏感信息")
     return 0
 
 
