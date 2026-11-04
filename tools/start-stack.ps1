@@ -367,7 +367,9 @@ if ($scpCode -ne 0) { Fail ('could not upload the NapCat wrapper (scp exit ' + $
 $RemoteVbs = 'C:/Windows/Temp/qqb-hidden-run.vbs'
 $LocalVbs = Join-Path $env:TEMP ('qqb-hidden-run-' + [Guid]::NewGuid().ToString('N') + '.vbs')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'hidden-run.vbs') -Destination $LocalVbs -Force
-$scpVbs = $ScpBase + @($LocalVbs, ($Target + ':' + $RemoteVbs))
+$scpVbs = @('-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=accept-new')
+if ($port -ne '22') { $scpVbs = $scpVbs + @('-P', $port) }
+$scpVbs = $scpVbs + @($LocalVbs, ($Target + ':' + $RemoteVbs))
 & scp @scpVbs | Out-Null
 $scpVbsCode = $LASTEXITCODE
 Remove-Item -LiteralPath $LocalVbs -Force -ErrorAction SilentlyContinue

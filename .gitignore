@@ -12,7 +12,7 @@
 auths/
 **/auths/
 *.token
-cookies*.json
+*cookie*
 
 # --- 插件实例配置：含群号与关键词，真值不入库 ---
 host/plugin/*/config.json
@@ -38,9 +38,11 @@ host/stack.conf
 *.env
 .env
 .env.*
+*.env.*
 !*.env.example
 id_rsa*
 id_ed25519*
+id_ecdsa*
 known_hosts*
 
 # --- 上游二进制与安装包（许可证不允许再分发，部署时从官方 Release 下载）---

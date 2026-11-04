@@ -7,6 +7,16 @@
 
 ---
 
+## [未发布]
+
+### start-stack 修复与 gitignore 收紧（2026-11-04）
+
+- `tools/start-stack.ps1` 补 `$ScpBase` 定义（原为未定义变量，自定义 `ssh_port` 时
+  `hidden-run.vbs` 上传不带 `-P`，NapCat 隐藏壳任务重建必挂）
+- `.gitignore` 收紧：`*.env.*`、`*cookie*`、`id_ecdsa*`（原规则挡不住 `foo.env.local`、
+  `cookie.json`、`id_ecdsa` 这类名字）
+- `tools/make_social_preview.py` 缺 numpy/Pillow 时给出安装提示
+
 ## [0.1.0] — 2026-11-01
 
 面向用户的说明见 [docs/release-notes/0.1.0.md](docs/release-notes/0.1.0.md)。
