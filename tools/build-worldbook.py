@@ -22,6 +22,10 @@ import argparse
 import json
 import os
 import re
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
 
 # 这些词太泛，出现在几乎每个小节里，当 key 会命中一片
 GENERIC_KEYS = {
@@ -383,7 +387,7 @@ def main() -> int:
 
     for src in args.src:
         if not os.path.isfile(src):
-            print(f"✗ 找不到设定集：{src}")
+            print(f"[FAIL] 找不到设定集：{src}")
             return 2
 
     book_name = args.book_name or os.path.splitext(os.path.basename(args.src[0]))[0]
@@ -408,7 +412,7 @@ def main() -> int:
 
     total = sum(len(e["content"]) for e in data["entries"])
     constant = sum(1 for e in data["entries"] if e.get("constant"))
-    print(f"✓ {len(data['entries'])} 条（常驻 {constant} 条），正文合计 {total} 字 → {args.out}")
+    print(f"[OK] {len(data['entries'])} 条（常驻 {constant} 条），正文合计 {total} 字 → {args.out}")
 
     if args.view:
         view_dir = os.path.join(args.view, "views", "worldbook")
@@ -416,7 +420,7 @@ def main() -> int:
         view_path = os.path.join(view_dir, "index.html")
         with open(view_path, "w", encoding="utf-8") as fh:
             fh.write(render_view(data))
-        print(f"✓ WebUI 浏览页 → {view_path}")
+        print(f"[OK] WebUI 浏览页 → {view_path}")
     return 0
 
 

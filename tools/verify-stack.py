@@ -21,6 +21,9 @@ import os
 import subprocess
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+
 CONF_DEFAULT = os.path.join("host", "stack.conf")
 DEFAULTS = {
     "ssh_port": "22",
@@ -204,7 +207,7 @@ def main() -> int:
         nc_port = to_port("napcat_port", conf.get("napcat_port") or DEFAULTS["napcat_port"])
         ob_port = to_port("onebot_port", conf.get("onebot_port") or DEFAULTS["onebot_port"])
     except ConfError as exc:
-        print("✗ %s" % exc, file=sys.stderr)
+        print("[FAIL] %s" % exc, file=sys.stderr)
         print("  条目：T8", file=sys.stderr)
         return 2
 
@@ -212,7 +215,7 @@ def main() -> int:
                (("host", args.host), ("user", args.user), ("api_key", args.key))
                if is_placeholder(val)]
     if missing:
-        print("✗ 以下字段仍是占位符或缺失：%s" % "、".join(missing), file=sys.stderr)
+        print("[FAIL] 以下字段仍是占位符或缺失：%s" % "、".join(missing), file=sys.stderr)
         print("  在 %s 里填真值，或用命令行覆盖。条目：T8" % args.conf, file=sys.stderr)
         return 2
 
@@ -225,7 +228,7 @@ def main() -> int:
     def run(label, script, hint, judge=None):
         ok, out, err = remote_ps(args, script)
         if not ok:
-            print("✗ %s：无法在目标机执行（%s）" % (label, (err or out).strip()[:160]))
+            print("[FAIL] %s：无法在目标机执行（%s）" % (label, (err or out).strip()[:160]))
             print("  条目：T1")
             failed.append(label)
             return None
@@ -236,9 +239,9 @@ def main() -> int:
             good = bool(result.get("ok"))
             detail = result.get("err") or "ok"
         if good:
-            print("✓ %s：%s" % (label, detail))
+            print("[OK] %s：%s" % (label, detail))
         else:
-            print("✗ %s：%s" % (label, detail))
+            print("[FAIL] %s：%s" % (label, detail))
             print("  条目：%s" % hint)
             failed.append(label)
         return result
@@ -270,10 +273,10 @@ def main() -> int:
 
     print("-" * 64)
     if failed:
-        print("✗ %d 项失败：%s" % (len(failed), "、".join(failed)))
+        print("[FAIL] %d 项失败：%s" % (len(failed), "、".join(failed)))
         print("  端到端问答（QQ 发消息）无法自动验证，请人工确认。")
         return 1
-    print("✓ 五项全部通过。")
+    print("[OK] 五项全部通过。")
     print("  还剩一步人工验收：在 QQ 里给 bot 发一条消息，确认能收到回复。")
     return 0
 
