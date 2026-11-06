@@ -18,9 +18,9 @@
 
 一套 Windows 上的 QQ 机器人部署方案，三块组件拼成一条完整链路：**QQ 消息进来 → 模型生成回复 → 发回 QQ**。仓库本身只含部署脚本、验证脚本与文档，不含任何上游代码或二进制。
 
-**AstrBot** 是大脑：接模型、跑插件、管对话。**NapCat** 是协议端：跑在 QQ NT 之上，把 QQ 消息翻译成 OneBot 11。**workbuddy2api** 是模型网关：把 WorkBuddy 账号池变成 OpenAI 兼容接口，AstrBot 直接指向它。
+**AstrBot** 是大脑：接模型、跑插件、管对话。**NapCat** 是协议端：跑在 QQ NT 之上，把 QQ 消息翻译成 OneBot 11。**zgate** 是模型网关入口：AstrBot 只连 `127.0.0.1:7871`，由 zgate 按模型名分流到 `wb2api` / OpenCode 上游；**workbuddy2api** 是其托管的 WorkBuddy 账号池兼容层。
 
-三块的接线是固定的：NapCat 作为 WebSocket 客户端**主动连** AstrBot 的 `127.0.0.1:6199`，所以协议端不需要开任何入站端口；AstrBot 以 OpenAI 兼容协议请求 `127.0.0.1:7863/v1`。**三个服务的 WebUI 默认只绑回环**，运维通过 SSH 本地转发进入；唯一的例外是 AstrBot 面板（6185）可按[防火墙限网段](https://github.com/MVennn/QQBotStack/blob/main/docs/ARCHITECTURE.md)的口径对局域网开放，且前提是面板密码已改掉初始值。
+三块的接线是固定的：NapCat 作为 WebSocket 客户端**主动连** AstrBot 的 `127.0.0.1:6199`，所以协议端不需要开任何入站端口；AstrBot 以 OpenAI 兼容协议请求 `127.0.0.1:7871/v1`（zgate），由它转发到 `wb2api 7863` 或 OpenCode；`7863` 仅作 wb2api 内部端口 / 探活目标。**三个服务的 WebUI 默认只绑回环**，运维通过 SSH 本地转发进入；唯一的例外是 AstrBot 面板（6185）可按[防火墙限网段](https://github.com/MVennn/QQBotStack/blob/main/docs/ARCHITECTURE.md)的口径对局域网开放，且前提是面板密码已改掉初始值。
 
 完整边界、端口与「会改机器哪些状态」见 [docs/ARCHITECTURE.md](https://github.com/MVennn/QQBotStack/blob/main/docs/ARCHITECTURE.md)；每块组件怎么装、怎么调见 [docs/TOOLS.md](https://github.com/MVennn/QQBotStack/blob/main/docs/TOOLS.md)。
 

@@ -237,7 +237,7 @@ QQBotStack/
 | wb2api | `config.json` 的 `listen` | `127.0.0.1:7863`（**不要** `:7863`，那会绑所有网卡） |
 | wb2api | `config.json` 的 `api_key` | 每个部署点重新生成，别复用别处的 |
 | NapCat | OneBot 网络配置 | **WebSocket 客户端** → `ws://127.0.0.1:6199/ws`，带 token |
-| AstrBot | 服务提供商 | OpenAI 兼容，`http://127.0.0.1:7863/v1`，模型 `global:hy3` |
+| AstrBot | 服务提供商 | OpenAI 兼容，`http://127.0.0.1:7871/v1`（zgate），默认模型 `hy3`；`7863/v1` 与 `global:hy3` 是 2026-10 旧名 |
 | AstrBot | `max_tokens` | **≥ 2048** —— hy3 是推理模型，给少了正文为空（[PITFALLS.md](PITFALLS.md) P4） |
 | AstrBot | 平台适配 | aiocqhttp，`ws_reverse_host=127.0.0.1`、`port=6199`、token 与 NapCat 一致 |
 
@@ -246,7 +246,7 @@ QQBotStack/
 | 项 | 值 |
 |---|---|
 | 可用模型数 | 55（6 个账号都在时） |
-| hy3 系列 | `cn:hy3`、`cn:hy3-x`、`global:hy3` |
+| hy3 系列 | `hy3`（verify-stack.py 默认档）、`HY3-Free`（免费档，可读图）、`Beam`（OpenCode）；`global:hy3` 等为 2026-10 旧名 |
 | hy4 系列 | `global:hy4-preview`（付费，积分不足时 503）、`global:hy4-preview-f`（免费档） |
 | 响应特征 | 同时返回 `content` 与 `reasoning_content`（推理模型，`max_tokens` 要给足） |
 | 无账号时 | `/v1/models` 返回 0 条 —— 目录由账号聚合，不是故障 |
@@ -269,6 +269,6 @@ QQBotStack/
 
 路由据此把带图的消息固定交给 `HY3-Free`（见插件 `_route_model`）。
 
-因此 provider 的 `modalities` 是 `["text", "image", "tool_use"]`（前提：走 zgate）。
+`zgate-beam` 的 `modalities` 只声明 `["text", "tool_use"]`；图片轮由 AstrBot / guard 切到 `zgate-router`，只有 `zgate-router` 才带 `image`（见 [ARCHITECTURE.md](ARCHITECTURE.md) §2）。
 填错会让 AstrBot 误判能力（填少了丢图片、填多了浪费 token），详见
 [PITFALLS.md](PITFALLS.md) P20。

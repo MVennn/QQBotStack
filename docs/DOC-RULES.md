@@ -11,9 +11,10 @@ docs/ 分四类（索引见 [README.md](README.md)）：
 
 | 类别 | 收什么 | 现有成员 |
 |---|---|---|
-| 架构与机制 | 边界、设计、部署决策 | ARCHITECTURE、DESIGN-DEPLOY、DESIGN-MEDIA |
+| 架构与机制 | 边界、设计、部署决策 | ARCHITECTURE、DESIGN-DEPLOY、DESIGN-FOLLOWUP、DESIGN-MEDIA、DESIGN-MEME-EXPORT、DESIGN-MEMORY |
 | 工具专项 | 组件清单、踩坑、排错 | TOOLS、PITFALLS、TROUBLESHOOTING |
-| 流程与规范 | 版本、凭据、文档规则 | VERSIONING、SECRETS、DOC-RULES |
+| 流程与规范 | 版本、凭据、文档规则、提示词 | VERSIONING、SECRETS、DOC-RULES、PROMPT-SPEC |
+| 索引 | 唯一入口（正本） | README |
 | 参考资料 | Release 说明 | release-notes/ |
 
 每篇文档开头必须有一个 **「一句话」引言块**（`> **一句话**：…` 或一行定位语）。

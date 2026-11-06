@@ -27,7 +27,7 @@
 
 它**不会**做的事（设计约束）：
 
-- ❌ 不向局域网暴露任何 WebUI —— 三个服务全部只绑 `127.0.0.1`
+- ❌ 除 AstrBot WebUI（6185）在面板密码已改且防火墙限定局域网网段（`<LAN-SUBNET>`）的例外外，其余面板只绑 `127.0.0.1`；边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §3
 - ❌ 不做端口转发、不碰路由器 NAT
 - ❌ 不修改上游组件（AstrBot / NapCat / wb2api）的代码
 - ❌ 不在仓库里保存任何 token、账号或 QQ 号

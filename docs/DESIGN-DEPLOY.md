@@ -66,9 +66,11 @@
 | `data/request-logs/` | — | 请求归档，保留 7 天 | ❌ 不迁，历史日志无意义 |
 | `.git` | ~35 MB | 上游仓库 | ❌ 不迁 |
 
-**zgate 不迁**：`zgate.json` 依赖 `~/.zcode/v2/provider_config.json` 与
+> 本节为 2026-10-26 初版方案，已由 `CHANGELOG.md`「网关入口改为 zgate（AstrBot 只连 `127.0.0.1:7871`）」取代；现行接线见 [ARCHITECTURE.md](ARCHITECTURE.md) §1 / §3。以下保留决策来龙去脉。
+
+**zgate 不迁（初版结论，已取代）**：`zgate.json` 依赖 `~/.zcode/v2/provider_config.json` 与
 `model-alias-map.json`（本机 ZCode 的配置），目标机没有 ZCode。搬它等于顺带搬一套 ZCode
-配置，收益为零 —— 因为 **`wb2api` 本身就是 OpenAI 兼容网关**，AstrBot 直接指向它即可（§八.2）。
+配置，收益为零 —— 因为初版判断 **`wb2api` 本身就是 OpenAI 兼容网关**，AstrBot 直接指向它即可（§八.2）；现行方案已改为 AstrBot → zgate → wb2api / OpenCode。
 
 ### 2.4 模型侧实测（2026-10-26，本机现有实例）
 

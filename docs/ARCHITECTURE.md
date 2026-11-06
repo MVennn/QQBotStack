@@ -11,7 +11,7 @@
 |---|---|---|
 | 协议端 | NapCat（跑在 QQ NT 之上） | 收 QQ 消息 → 转成 OneBot 11 → 推给 AstrBot |
 | 大脑 | AstrBot | 组装上下文、调模型、跑插件、把回复交回协议端 |
-| 模型网关 | wb2api（workbuddy2api） | WorkBuddy 账号池 → OpenAI 兼容 `/v1` 接口 |
+| 模型网关 | zgate（入口）/ wb2api（上游） | zgate 监听 `127.0.0.1:7871` 按模型名分流；wb2api 把 WorkBuddy 账号池变成 OpenAI 兼容 `/v1` 接口 |
 
 ```text
 QQ 用户
@@ -21,10 +21,10 @@ NapCat ──OneBot 11 反向 WebSocket（NapCat 主动连出）──▶ AstrBo
                                                           │
                                                           │ OpenAI 兼容请求
                                                           ▼
-                                                     wb2api 127.0.0.1:7863/v1
+                                                     zgate 127.0.0.1:7871/v1
                                                           │
-                                                          ▼
-                                                   WorkBuddy 上游
+                                                          ├─▶ wb2api 127.0.0.1:7863/v1 → WorkBuddy 上游
+                                                          └─▶ OpenCode 上游
 ```
 
 **方向是固定的**：NapCat 是 WebSocket **客户端**，AstrBot 是服务端。所以协议端
@@ -155,7 +155,7 @@ guard 另有按模型独立计数的断路器：主模型和 HY3 分别统计 5x
 |---|---|
 | 当前部署 | **中期版**（第七至十二章前后）：**55 条 / 10,933 字**，2 条常驻 404 字 |
 | 生成命令 | `python .work/build_midworldbook.py`；它先用 `tools/build-worldbook.py --src .work/世界书_中期.md` 切分，再补常驻条目、别名与优先级 |
-| 全本入口 | 设定推进到后期时，仍可用 `tools/build-worldbook.py --src 设定/02–13 --src 设定/08-人物/00–09 --src 大纲/01–05 --out ...` 生成全本；当前不要直接部署全本 |
+| 全本入口 | 全本素材来自兄弟仓 EmeraldEden 的 `设定/`，需先同步进本仓 `.work/`；本仓现役入口是 `python .work/build_midworldbook.py`（`tools/build-worldbook.py --src .work/世界书_中期.md`），不存在本仓 `设定/` / `大纲/` 目录 |
 | 单条上限 | 700 字（在句号处截断） |
 | 单轮注入上限 | 2 条常驻 + 最多 2 条命中，合计 ≤ 1,400 字（`LORE_MAX_CHARS`） |
 | 关键词来源 | 小节标题 + 正文里的 `**加粗**` 术语 + 生成后补的别名（神父 / 小伯 / 拉贵尔 / 赤鬼 / 阿悠 / 犹达斯 / 乌列 / 白翅膀 / 摆渡人 / 商会 / 信使 / 学者） |
@@ -260,7 +260,7 @@ DeepSeek 无健康账号、HY3 限流回退），不是插件循环。
 |---|---|---|---|
 | wb2api API | 7863 | `127.0.0.1` | 仅本机（AstrBot） |
 | wb2api 面板 | 7863 `/panel/` | `127.0.0.1` | 仅本机；运维走 SSH 转发 |
-| **AstrBot WebUI** | **6185** | **`0.0.0.0`（例外）** | **局域网 10.0.0.0/24，需登录** |
+| **AstrBot WebUI** | **6185** | **`0.0.0.0`（例外）** | **局域网 `<LAN-SUBNET>`，需登录** |
 | AstrBot OneBot 反向 WS | 6199 | `127.0.0.1` | 仅本机（NapCat） |
 | NapCat WebUI | 6099 | `127.0.0.1` | 同上 |
 | zgate | 7871 | `127.0.0.1` | 仅本机（AstrBot） |
@@ -273,7 +273,7 @@ DeepSeek 无健康账号、HY3 限流回退），不是插件循环。
 
 ```powershell
 New-NetFirewallRule -Name 'AstrBot-WebUI' -DisplayName 'AstrBot WebUI (6185)' `
-  -Direction Inbound -Protocol TCP -LocalPort 6185 -Action Allow -RemoteAddress 10.0.0.0/24
+  -Direction Inbound -Protocol TCP -LocalPort 6185 -Action Allow -RemoteAddress <LAN-SUBNET>
 ```
 
 前提是**面板密码已经改过**（`password_change_required=false`）。没有密码或还是初始密码时，
