@@ -154,7 +154,7 @@ guard 另有按模型独立计数的断路器：主模型和 HY3 分别统计 5x
 | 项 | 值 |
 |---|---|
 | 当前部署 | **中期版**（第七至十二章前后）：**55 条 / 10,933 字**，2 条常驻 404 字 |
-| 生成命令 | `python .work/build_midworldbook.py`；它先用 `tools/build-worldbook.py --src .work/世界书_中期.md` 切分，再补常驻条目、别名与优先级 |
+| 生成命令 | 本地工作流脚本（不入库，见 `.gitignore` 的 `.work/` 规则）：`python .work/build_midworldbook.py`；它先用 `tools/build-worldbook.py --src .work/世界书_中期.md` 切分，再补常驻条目、别名与优先级 |
 | 全本入口 | 全本素材来自兄弟仓 EmeraldEden 的 `设定/`，需先同步进本仓 `.work/`；本仓现役入口是 `python .work/build_midworldbook.py`（`tools/build-worldbook.py --src .work/世界书_中期.md`），不存在本仓 `设定/` / `大纲/` 目录 |
 | 单条上限 | 700 字（在句号处截断） |
 | 单轮注入上限 | 2 条常驻 + 最多 2 条命中，合计 ≤ 1,400 字（`LORE_MAX_CHARS`） |
@@ -173,8 +173,8 @@ qqbotstack_worldbook 自带的 `views/editor/index.html`，数据走该插件注
 （增删改、匹配预览、重载）。`tools/build-worldbook.py --view <插件目录>` 仍可额外
 生成一份数据内联的静态浏览页（`views/worldbook/index.html`），常驻条目有橙色标记。
 
-**`worldbook.json` 不入库**（含作品正文），仓库里只有生成器；阶段源文件与产物都在
-`.work/`。改了设定集或推进阶段就重新生成一次，再拷到实例的
+**`worldbook.json` 不入库**（含作品正文），仓库里只有生成器；阶段源文件与产物都在本地
+`.work/`（不入库，见 `.gitignore` 的 `.work/` 规则；克隆后需自备，仓库内不含）。改了设定集或推进阶段就重新生成一次，再拷到实例的
 `core/data/plugins/qqbotstack_guard/` 下并重启。
 
 ### 1.5 媒体分享与自然点歌
@@ -330,8 +330,7 @@ wb2api 由 `tools/deploy-stack.ps1` 自动注册（`QQBotStack-wb2api`）。另�
 schtasks /create /tn QQBotStack-astrbot /tr '"<部署根>\run-astrbot.cmd"' /sc onstart /ru SYSTEM /rl HIGHEST /f
 ```
 
-zgate 的自启用 ZcodeAIModels 仓自带的 `zgate install` 子命令管理（见该仓
-`docs/MAINTENANCE.md` §8），本仓只依赖任务名 `QQBotStack-zgate`，不要在本仓重造注册脚本。
+zgate 的自启用 [ModelBus 仓](https://github.com/MVennn/ModelBus)（原 ZcodeAIModels）自带的 `zgate install` 子命令管理（见该仓 [docs/MAINTENANCE.md §8](https://github.com/MVennn/ModelBus/blob/main/docs/MAINTENANCE.md)），本仓只依赖任务名 `QQBotStack-zgate`，不要在本仓重造注册脚本。
 
 NapCat 由 `runtime\napcat\run-napcat.cmd` 拉起：脚本自己找最新的 `NapCat.*.Shell`
 目录，已经在跑就直接退出；任务以**交互令牌**运行当前登录账户

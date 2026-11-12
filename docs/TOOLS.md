@@ -10,12 +10,14 @@
 | 脚本 | 跑在哪 | 干什么 | 会改状态吗 |
 |---|---|---|---|
 | `tools/deploy-stack.ps1` | 目标机（管理员 PowerShell） | 分阶段幂等部署：网关 / 协议端 / 机器人 | **会** —— 见 [ARCHITECTURE.md](ARCHITECTURE.md) §2 |
-| `tools/verify-stack.py` | 操作机 | 五步验收：模型目录 / 网关对话 / AstrBot 面板 / NapCat 连接 / 端到端问答 | 不改；会消耗少量模型额度 |
+| `tools/verify-stack.py` | 操作机 | 五项自动验收：模型目录 / 网关对话 / AstrBot 面板 / NapCat 面板 / OneBot 端口；端到端问答要在 QQ 里发消息人工确认 | 不改；会消耗少量模型额度 |
 | `tools/sync-auths.ps1` | 操作机 | 把 `auths/` 推到目标机并重启网关；**每天最多一次**（日期记在 `%LOCALAPPDATA%\QQBotStack\authsync.state`） | 改目标机的账号文件与网关进程 |
 | `tools/sync-auths-hidden.vbs` | 操作机 | `sync-auths.ps1` 的隐藏启动器，供计划任务调用（`WScript.Shell.Run(..., 0, True)`） | 不改；只是启动器 |
 | `tools/start-stack.ps1` | 操作机 | 一键查看/拉起四块组件；`-Restart` 重启网关 / zgate / AstrBot | **会** —— 在目标机起进程、首次运行会建 NapCat 计划任务 |
 | `tools/stack-menu.cmd` | 操作机 | **双击式控制台**：数字菜单（状态 / 启动 / 重启 / 面板 / 扫码 / SSH），目标地址从 stack.conf 读 | 随所选菜单项 |
 | `tools/get-qr.ps1` | 操作机 | 从目标机拉最新 NapCat 二维码到本机并打开（登录/切号扫码用，不用去碰目标机桌面） | 只读 + 拉一个 png |
+| `tools/start-stack.cmd` | 操作机 | `start-stack.ps1` 的双击入口，参数原样透传（仓库根的 `启动QQBotStack.lnk` 指向它） | 同 `start-stack.ps1` |
+| `tools/hidden-run.vbs` | 目标机 | 计划任务用的通用隐藏启动器：`wscript`（不分配控制台）拉起 `run-*.cmd`，同步等待，保证 `schtasks /end` 能杀掉整棵进程树 | 不改；只是启动器 |
 | `tools/build-worldbook.py` | 任意 | 把 Markdown 设定集切成世界书条目（按二级标题切、标题与加粗术语作关键词） | 只写输出 JSON |
 | `tools/check-docs.py` | 任意 | 文档自检：断链、失效锚点、缺引言块、孤儿文档 | 不改 |
 | `tools/check-secrets.py` | 任意 | 脱敏扫描：token、本机绝对路径、真实邮箱 | 不改 |
@@ -31,10 +33,13 @@ powershell -ExecutionPolicy Bypass -File tools\deploy-stack.ps1 -Stage all
 |---|---|
 | `-Stage` | `gateway` / `napcat` / `astrbot` / `all`，默认 `all` |
 | `-Root` | 部署根目录，默认脚本所在目录的上一级 |
-| `-WhatIf` | 只打印将要做什么 |
+| `-GatewayExe` | `runtime` 里没有 `wb2api.exe` 时，从这个路径复制过去（你自己 `go build` 的产物） |
+| `-NapCatVersion` | NapCatQQ 的 Release tag，默认 `4.18.41` |
+| `-LauncherVersion` | AstrBot Launcher 的 Release tag，默认 `0.3.13` |
+| `-WhatIf` | 演练：下载、复制、写 `config.json`、解包、注册计划任务、静默安装等写操作只打印 `What if:` 不执行（脚本声明了 `[CmdletBinding(SupportsShouldProcess = $true)]`，共 9 处 `ShouldProcess` 守卫） |
 
-每个阶段可重复执行。`gateway` 阶段会覆盖 `wb2api.exe` 与 `run-wb2api.cmd`，
-但**不会覆盖已存在的 `config.json`**（里面有你生成的 api_key 与已登录账号的关联）。
+每个阶段可重复执行。`gateway` 阶段在 `wb2api.exe` 缺失时才从 `-GatewayExe` 复制（已存在就 `Write-Skip` 跳过），
+`run-wb2api.cmd` 每次重写；`config.json` 已存在则原样保留（里面有你生成的 api_key 与已登录账号的关联）。
 
 ### 1.2 `verify-stack.py`
 
@@ -81,12 +86,12 @@ powershell -ExecutionPolicy Bypass -File tools\start-stack.ps1 -Restart astrbot
 | `-Status` | 只报告状况，不启动、不改状态：四块组件的任务+进程、6185/7863/7871 端口探活、**NapCat→AstrBot 链路与 QQ 登录态**（二维码等扫时会直接标出来） |
 | `-Restart` | `astrbot` / `gateway` / `zgate` / `all`；重启后面板能应答（6185）才算完 |
 | `-Wait` | 起完后等几秒再取一次状态，默认 8 |
+| `-Conf` | 目标机配置文件，默认 `<repo>\host\stack.conf` |
 
 `-Status` 就是「一切是否正常」的首选入口：AstrBot 面板（6185）只覆盖 bot 自己，
 进程在场也不等于活着（QQ 挂了 5 天进程照样在），端口探活 + OneBot 连接 + 登录态
 三样齐了才算真在线。NapCat 进程探针看的是 QQ.exe 而不是 NapCatWinBootMain.exe
 （后者引导完 QQ 就退出，2026-11-01 修正）。
-| `-Conf` | 默认 `<repo>\host\stack.conf` |
 
 **首次运行**会在目标机上落两个东西：`runtime\napcat\run-napcat.cmd`（找最新的
 `NapCat.*.Shell` 目录、已在跑就直接退出）与计划任务 `QQBotStack-napcat`
@@ -109,7 +114,7 @@ AstrBot 插件，决定机器人在群里什么时候开口。部署位置：
 |---|---|
 | `main.py` | 插件本体：放行 / `stop_event()` 的判定；分享与点歌的 LLM Tool；B站兜底 |
 | `config.json` | **实例配置，不入库**（含群号与关键词）；模板见 `config.example.json` |
-| `worldbook.json` | **世界书产物，不入库**；当前中期版由 `.work/build_midworldbook.py` 从 `.work/世界书_中期.md` 编排，底层仍调用 `tools/build-worldbook.py` |
+| `worldbook.json` | **世界书产物，不入库**；中期版由本地工作流脚本从阶段设定集编排（脚本与源文件都在 `.work/`，不入库，见 [ARCHITECTURE.md](ARCHITECTURE.md) §1.4），底层仍调用 `tools/build-worldbook.py` |
 | `views/status/index.html` | WebUI 状态页：接话窗口、断路器、插件委托的运行时快照 |
 
 ```json
@@ -191,8 +196,8 @@ AstrBot 插件，负责「表情标记」的最后一段提示和发送前清理
 当前正式模式是**模型单轮选图**：meme_manager 把 25 个名字写进 system prompt，
 本插件在所有 hook 之后（priority `-100`）再补一段提醒和真实示例，模型在回复末尾
 输出 `&&名字&&`；meme_manager 剥掉标记并按 `generation.emotion.probability`
-（当前 50）决定是否发图。`enabled=true` 的随机兜底只在模型没选中或门控没中时生效，
-从 `fallback_names` 列的安慰/难过类里抽，`probability` 是 0.2、`cooldown_sec` 60 秒。
+（当前 50）决定是否发图。本插件的随机兜底代码默认**关闭**（`main.py:36-45` 的 `DEFAULTS` 里 `enabled=False`、`fallback_names=[]`），
+`config.example.json` 把它开成 `true` 并给了 7 个安慰/难过类名字。开启后要同时满足五条才追加一张：结果是 LLM 文本、`meme_manager` 没有待发图片、回复里还没有图片、过了 `cooldown_sec` 冷却、`random() < probability`（0.2）（`main.py:258-292`）。
 `leak_sanitize_enabled` 清理工具回合漏出的 `</rfl:parameter>` 一类标签。
 `context_keep=-1` 表示不改动上下文；正数表示只保留最近 N 条（调试用）。
 改完 `config.json` 需要重启 AstrBot 才生效。设计见
@@ -217,17 +222,32 @@ AstrBot 插件，负责「表情标记」的最后一段提示和发送前清理
 ```text
 QQBotStack/
 ├── host/
-│   └── stack.conf.example       主机与账号配置模板（只有占位符）
+│   ├── stack.conf.example       主机与账号配置模板（只有占位符；真值 stack.conf 不入库）
+│   └── plugin/                  五个自研 AstrBot 插件（复制到实例 core\data\plugins\ 后重启）
+│       ├── qqbotstack_guard/        唤醒与接话（config.example.json 是模板）
+│       ├── qqbotstack_people/       人物记忆
+│       ├── qqbotstack_worldbook/    世界书（只有 WebUI 编辑器，无 config.example.json）
+│       ├── qqbotstack_tools/        媒体与小功能（带 requirements.txt）
+│       └── qqbotstack_memechance/   表情机缘
 ├── tools/
 │   ├── deploy-stack.ps1         分阶段部署（纯 ASCII）
-│   ├── verify-stack.py          五步验收
+│   ├── verify-stack.py          五项验收
+│   ├── start-stack.ps1          查看 / 拉起 / 重启（直接跑）
+│   ├── start-stack.cmd          双击入口（仓库根的 启动QQBotStack.lnk 指向它）
+│   ├── stack-menu.cmd           双击数字菜单
+│   ├── get-qr.ps1               拉 NapCat 二维码到本机打开
+│   ├── sync-auths.ps1           每天最多一次把 auths/ 推到目标机并重启网关
+│   ├── sync-auths-hidden.vbs    sync-auths.ps1 的隐藏启动器（计划任务用）
+│   ├── hidden-run.vbs           目标机上隐藏拉起 run-*.cmd 的通用包装
+│   ├── build-worldbook.py       Markdown 设定集 → 世界书 JSON
 │   ├── check-docs.py            文档自检
 │   ├── check-secrets.py         脱敏扫描
 │   └── make_social_preview.py   门面资源渲染
-├── docs/                        文档（索引见 docs/README.md）
-├── assets/                      门面资源（icon.svg 是正本）
+├── docs/                        文档 14 篇（索引见 docs/README.md）
+├── assets/                      门面资源（icon.svg 是正本，logo.png / social-preview.png 由脚本渲染）
 ├── runtime/                     部署后生成（不入库）
-└── .github/                     Issue 表单与 CI
+├── .github/                     Issue 表单与 CI
+└── 根文件：AGENTS.md / CHANGELOG.md / CONTRIBUTING.md / SECURITY.md / NOTICE / LICENSE / README.md
 ```
 
 ## 4. 三块组件怎么配（要点）
