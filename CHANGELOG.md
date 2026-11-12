@@ -7,7 +7,68 @@
 
 ---
 
+## [0.1.2] — 2026-11-12
+
+面向用户的说明见 [docs/release-notes/0.1.2.md](docs/release-notes/0.1.2.md)。
+
+本版为**文档与元数据修订版**：`tools/` 下的脚本与 `host/plugin/` 下的插件代码零改动，
+部署流程与验收口径不变；改的是文档里对「谁装 zgate、插件默认怎么选图、验收到底是几项」
+这些说法的准确性，外加一处插件描述元数据。
+
+### 网关口径与文档正本修订（2026-11-12，`d8ed135`）
+
+- 调整 网关入口表述 —— 根 README 与 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 统一为
+  「AstrBot → zgate `127.0.0.1:7871` → wb2api / OpenCode」，并写明 `7863` 只是 wb2api 内部端口与探活目标；
+  网关表里的角色拆成「zgate（入口）/ wb2api（上游）」。
+- 修复 局域网暴露口径 —— [SECURITY.md](SECURITY.md) 与 [ARCHITECTURE.md](docs/ARCHITECTURE.md) 的
+  `10.0.0.0/24` 改占位 `<LAN-SUBNET>`，并把「不向局域网暴露任何 WebUI」改成「6185 面板在改过密码 +
+  防火墙限网段时是唯一例外」，与架构文档 §3 一致。
+- 调整 世界书全本入口 —— [ARCHITECTURE.md](docs/ARCHITECTURE.md) §1.4 写明全本素材来自兄弟仓
+  EmeraldEden，本仓不存在 `设定/` / `大纲/` 目录，现役入口只有本地 `.work/` 里的工作流脚本。
+- 调整 模型名口径 —— [TOOLS.md](docs/TOOLS.md) 的模型表改为现名（`hy3` / `HY3-Free` / `Beam`），
+  标注 `global:hy3` 等为 2026-10 旧名；`zgate-beam` 的 `modalities` 只声明 `["text","tool_use"]`，
+  图片轮由 `zgate-router` 承担。
+- 调整 部署设计定位 —— [DESIGN-DEPLOY.md](docs/DESIGN-DEPLOY.md) §2「zgate 不迁」标为 2026-10-26
+  初版结论、已被现行方案取代，指回 [ARCHITECTURE.md](docs/ARCHITECTURE.md) §1 / §3。
+- 调整 文档分类表 —— [DOC-RULES.md](docs/DOC-RULES.md) 补齐 DESIGN-FOLLOWUP / DESIGN-MEDIA /
+  DESIGN-MEME-EXPORT / DESIGN-MEMORY / PROMPT-SPEC 与索引一篇，分类与磁盘上的 14 篇对齐。
+- 修复 CHANGELOG 头部 —— 版本号写法由「形如 `vX.Y.Z`」改为「`X.Y.Z`，`v` 前缀只属于 git tag」。
+
+### 门面、目录树与验收口径补齐（2026-11-12）
+
+- 新增 门面「仓库里有什么」 —— 根 [README.md](README.md) 补脚本表（deploy / verify / start / stack-menu /
+  get-qr / sync-auths）与五个自研插件表（各自干什么、`config.example.json` 怎么用、`config.json` 不入库）。
+- 调整 使用步骤 —— 根 README 补操作机先准备 `host/stack.conf`、NapCat 安装器是交互式控制台程序
+  （要到桌面会话里跑、SSH 里跑不了）、验收是五项自动探测 + QQ 里人工确认一条端到端问答。
+- 调整 运维入口 —— 根 README 补 `onebot11_<QQ-ID>.json` 反连配置（WebSocket 客户端指
+  `ws://127.0.0.1:6199/ws`、带 token）、`quicklogin.txt` 换号三步、`stack-menu.cmd` / `get-qr.ps1` /
+  `sync-auths.ps1` 与计划任务 `QQBotStack-authsync`。
+- 调整 第三方声明表 —— 根 README 鸣谢表补 astrbot_plugin_parser（MIT）、astrbot_plugin_music（GPL-3.0）、
+  FFmpeg；并注明 zgate 由 [ModelBus 仓](https://github.com/MVennn/ModelBus) 的 `zgate install` 安装、本仓只依赖任务名。
+- 调整 目录树 —— [TOOLS.md](docs/TOOLS.md) §3 重写：补 `host/plugin/` 五个插件（worldbook 无
+  `config.example.json`）、`tools/` 补全 start-stack.cmd / stack-menu.cmd / get-qr.ps1 / sync-auths-hidden.vbs /
+  hidden-run.vbs / build-worldbook.py，`docs/` 标注 14 篇。
+- 调整 部署参数表 —— [TOOLS.md](docs/TOOLS.md) §1.1 补 `-GatewayExe` / `-NapCatVersion`（默认 4.18.41）/
+  `-LauncherVersion`（默认 0.3.13），并把 `-WhatIf` 写明是 9 处 `ShouldProcess` 守卫的演练；
+  `gateway` 阶段改为「`wb2api.exe` 缺失时才从 `-GatewayExe` 复制，`config.json` 已存在则保留」。
+- 修复 验收项数 —— [TOOLS.md](docs/TOOLS.md) §1.2 与脚本表由「五步验收（含端到端问答）」改为
+  「五项自动探测（模型目录 / 网关对话 / AstrBot 面板 / NapCat 面板 / OneBot 端口），端到端问答人工确认」，
+  与 `tools/verify-stack.py` 实际行为一致。
+- 修复 `-Conf` 参数位置 —— [TOOLS.md](docs/TOOLS.md) §1.3 的 `-Conf` 行原本落在表格与说明段落之间
+  （渲染成断表的孤立行），归回参数表。
+- 修复 表情插件兜底口径 —— [TOOLS.md](docs/TOOLS.md) §3 与
+  `host/plugin/qqbotstack_memechance/metadata.yaml` 的描述改为「模型选图为主、随机兜底为辅（兜底默认
+  **关闭**）」：仓库里 `main.py` 的 `DEFAULTS` 是 `enabled=False`、`fallback_names=[]`，只有
+  `config.example.json` 把它开成 `true`；开启后要同时满足五条才追加一张（LLM 文本、无待发图片、
+  回复里无图、过冷却、`random() < 0.2`）。
+- 修复 本地工作目录口径 —— [ARCHITECTURE.md](docs/ARCHITECTURE.md) §1.4 / [TOOLS.md](docs/TOOLS.md) §1.5
+  写明 `.work/` 不入库、克隆后需自备，世界书生成命令是本地工作流脚本而不是仓内脚本。
+- 修复 跨仓引用仓名 —— [PITFALLS.md](docs/PITFALLS.md) 的出处由 `ZcodeAIModels` 改为 `ModelBus`（该仓已改名）。
+- 补 说明引用 —— `## [0.1.1]` 段补「面向用户的说明见 …」一行，与 0.1.0 / 0.1.2 体例一致。
+
 ## [0.1.1] — 2026-11-06
+
+面向用户的说明见 [docs/release-notes/0.1.1.md](docs/release-notes/0.1.1.md)。
 
 ### 门禁脚本 GBK 控制台自毁修复（2026-11-04）
 

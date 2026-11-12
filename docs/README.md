@@ -49,7 +49,7 @@
 | 仓库根 [NOTICE](../NOTICE) | 第三方声明：AstrBot（AGPL-3.0）、Launcher（MIT）、NapCat（自定义）、workbuddy2api（MIT） |
 | 仓库根 [LICENSE](../LICENSE) | 许可证全文（**MIT**） |
 | [release-notes/](release-notes/README.md) | 面向使用者的 Release 说明，**文件名 = 版本号**（不带 `v` 前缀）；格式规范在它的 README |
-| [release-notes/0.1.1.md](release-notes/0.1.1.md) | 最近一份 Release 说明：start-stack 自定义端口修复与 gitignore 收紧，门禁 GBK 自毁修复 |
+| [release-notes/0.1.2.md](release-notes/0.1.2.md) | 最近一份 Release 说明：文档与插件描述修订 —— 网关口径、验收项数、目录树与表情插件兜底口径 |
 
 ---
 
